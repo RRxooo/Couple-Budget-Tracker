@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shared Ledger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .glass-panel {
+            background: rgba(24, 24, 27, 0.7);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-200 font-sans antialiased min-h-screen pb-24 selection:bg-amber-500/30">
+
+    <main class="max-w-md mx-auto p-4 space-y-6 mt-4">
+        <!-- Header -->
+        <header class="flex justify-between items-center">
+            <h1 class="text-2xl font-light tracking-wide text-white">Our <span class="text-amber-500 font-medium">Ledger</span></h1>
+            <button onclick="exportToCSV()" class="text-xs font-medium text-zinc-400 hover:text-amber-500 transition-colors border border-zinc-800 px-3 py-1.5 rounded-full">
+                Export CSV
+            </button>
+        </header>
+
+        <!-- Budget Progress Bar -->
+        <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl">
+            <div class="flex justify-between text-sm mb-2">
+                <span class="text-zinc-400">Monthly Budget</span>
+                <span class="font-medium text-amber-500" id="budgetRemaining">$0 Remaining</span>
+            </div>
+            <div class="w-full bg-zinc-950 rounded-full h-2.5 mb-2 overflow-hidden border border-zinc-800/50">
+                <div id="budgetFill" class="bg-amber-500 h-2.5 rounded-full transition-all duration-700 w-0"></div>
+            </div>
+            <div class="flex justify-between text-xs text-zinc-500 font-mono mt-3">
+                <span id="spentText">$0 spent</span>
+                <span>$2000 total</span>
+            </div>
+        </section>
+
+        <!-- Visualization -->
+        <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl">
+            <canvas id="expenseChart" height="200"></canvas>
+        </section>
+
+        <!-- Recent Transactions -->
+        <section>
+            <h2 class="text-sm font-medium text-zinc-500 uppercase tracking-widest mb-4 ml-1">Recent Activity</h2>
+            <div id="transactionsList" class="space-y-3">
+                <!-- Transactions inject here -->
+                <p class="text-sm text-zinc-600 text-center py-4 italic">No expenses recorded yet.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Floating Action Button -->
+    <div class="fixed bottom-6 left-0 w-full flex justify-center pointer-events-none">
+        <button onclick="toggleModal('expenseModal')" class="pointer-events-auto bg-amber-500 text-zinc-950 rounded-full w-14 h-14 shadow-[0_0_20px_rgba(245,158,11,0.3)] flex items-center justify-center text-3xl font-light hover:bg-amber-400 transition-transform active:scale-95 z-40">
+            +
+        </button>
+    </div>
+
+    <!-- Expense Entry Modal -->
+    <div id="expenseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity flex flex-col justify-end">
+        <div class="glass-panel w-full rounded-t-3xl p-6 shadow-2xl transform translate-y-full transition-transform duration-300" id="expenseModalContent">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl text-white font-medium">Log Expense</h3>
+                <button onclick="toggleModal('expenseModal')" class="text-zinc-500 hover:text-white text-xl">&times;</button>
+            </div>
+            <form id="expenseForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Amount</label>
+                    <input type="number" id="amount" required step="0.01" class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 font-mono text-lg transition-all" placeholder="0.00">
+                </div>
+                <div>
+                    <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Description</label>
+                    <input type="text" id="description" required class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all" placeholder="E.g., Dinner at generic spot">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Category</label>
+                        <select id="category" class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 appearance-none">
+                            <option value="Food">Food</option>
+                            <option value="Groceries">Groceries</option>
+                            <option value="Special Events">Special Events</option>
+                            <option value="Transport">Transport</option>
+                            <option value="Utilities">Utilities</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Paid By</label>
+                        <select id="paidBy" class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 appearance-none">
+                            <option value="Me">Me</option>
+                            <option value="Partner">Partner</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-amber-500 text-zinc-950 font-semibold rounded-xl py-3.5 mt-2 hover:bg-amber-400 active:scale-95 transition-all">
+                    Save to Ledger
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script type="module">
+        // TEMPORARY LOCAL STATE (Replaced by Firebase later)
+        let expenses = [];
+        const budgetTotal = 2000;
+
+        // UI Interactions
+        window.toggleModal = (modalId) => {
+            const modal = document.getElementById(modalId);
+            const content = document.getElementById(modalId + 'Content');
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0');
+                    content.classList.remove('translate-y-full');
+                }, 10);
+            } else {
+                modal.classList.add('opacity-0');
+                content.classList.add('translate-y-full');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                }, 300);
+            }
+        };
+
+        // Form Submission
+        document.getElementById('expenseForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const amount = parseFloat(document.getElementById('amount').value);
+            const description = document.getElementById('description').value;
+            const category = document.getElementById('category').value;
+            const paidBy = document.getElementById('paidBy').value;
+            const date = new Date().toISOString();
+
+            expenses.push({ amount, description, category, paidBy, date });
+            
+            e.target.reset();
+            toggleModal('expenseModal');
+            updateDashboard();
+        });
+
+        // Dashboard Updates
+        function updateDashboard() {
+            const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+            const remaining = budgetTotal - totalSpent;
+            const percentage = Math.min((totalSpent / budgetTotal) * 100, 100);
+
+            document.getElementById('spentText').innerText = `$${totalSpent.toFixed(2)} spent`;
+            document.getElementById('budgetRemaining').innerText = `$${remaining.toFixed(2)} Remaining`;
+            
+            const budgetFill = document.getElementById('budgetFill');
+            budgetFill.style.width = `${percentage}%`;
+            budgetFill.className = `h-2.5 rounded-full transition-all duration-700 ${percentage > 90 ? 'bg-red-500' : 'bg-amber-500'}`;
+
+            // Render List
+            const list = document.getElementById('transactionsList');
+            list.innerHTML = expenses.slice().reverse().map(exp => `
+                <div class="flex justify-between items-center bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
+                    <div>
+                        <p class="text-white font-medium">${exp.description}</p>
+                        <p class="text-xs text-zinc-500 mt-1">${exp.category} • Paid by ${exp.paidBy}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-white font-mono">$${exp.amount.toFixed(2)}</p>
+                        <p class="text-xs text-zinc-600 mt-1">${new Date(exp.date).toLocaleDateString()}</p>
+                    </div>
+                </div>
+            `).join('');
+
+            updateChart();
+        }
+
+        // Chart.js Setup
+        let chartInstance = null;
+        function updateChart() {
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            
+            const categoryTotals = expenses.reduce((acc, exp) => {
+                acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
+                return acc;
+            }, {});
+
+            if(chartInstance) chartInstance.destroy();
+            
+            Chart.defaults.color = '#71717a';
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categoryTotals),
+                    datasets: [{
+                        data: Object.values(categoryTotals),
+                        backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    cutout: '75%',
+                    plugins: {
+                        legend: { position: 'right', labels: { usePointStyle: true, padding: 20 } }
+                    }
+                }
+            });
+        }
+
+        // CSV Export
+        window.exportToCSV = () => {
+            if(expenses.length === 0) return alert("No expenses to export.");
+            const headers = ['Date', 'Description', 'Category', 'Paid By', 'Amount'];
+            const rows = expenses.map(e => [
+                new Date(e.date).toLocaleDateString(), 
+                `"${e.description}"`, 
+                e.category, 
+                e.paidBy, 
+                e.amount
+            ]);
+            const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "our_expenses.csv";
+            link.click();
+        };
+
+        // Initialize empty state
+        updateDashboard();
+    </script>
+</body>
+</html>

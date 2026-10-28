@@ -242,7 +242,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, doc, setDoc, addDoc, onSnapshot, query, orderBy, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
         // Your specific Firebase Configuration
         const firebaseConfig = {
@@ -335,11 +335,14 @@
                     budgets = docSnap.data().limits;
                 } else {
                     budgets = { "Food": 500, "Groceries": 500, "Transport": 200 };
-                    setDoc(budgetRef, { limits: budgets });
+                    setDoc(budgetRef, { limits: budgets }).catch(e => console.error(e));
                 }
                 categories = Object.keys(budgets);
                 updateCategoryDropdowns();
                 updateDashboard();
+            }, (error) => {
+                showToast("Database Locked: Your UID is not authorized yet!");
+                console.error("Firestore Error:", error);
             });
 
             // Fetch Expenses
@@ -349,6 +352,8 @@
                 snapshot.forEach((doc) => { expenses.push({ id: doc.id, ...doc.data() }); });
                 updateDashboard();
                 renderHistory();
+            }, (error) => {
+                console.error("Firestore Error:", error);
             });
         }
 
@@ -364,11 +369,19 @@
             }
         });
 
+        // Handle Redirect Results for Safari/Mobile
+        getRedirectResult(auth).catch((error) => {
+            showToast("Login Error: " + error.message);
+        });
+
         // Log in triggers
         document.getElementById('loginBtn').addEventListener('click', () => {
             signInWithPopup(auth, provider).catch((error) => {
-                if (error.code !== 'auth/popup-closed-by-user') {
-                    showToast("Login failed. Ensure you are using standard Safari/Chrome.");
+                if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+                    showToast("Popup blocked. Redirecting securely...");
+                    signInWithRedirect(auth, provider);
+                } else if (error.code !== 'auth/popup-closed-by-user') {
+                    showToast("Login failed: " + error.message);
                 }
             });
         });

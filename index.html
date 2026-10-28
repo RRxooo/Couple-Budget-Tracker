@@ -6,129 +6,250 @@
     <title>Shared Ledger</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
+        body { font-family: 'Inter', sans-serif; }
         .glass-panel {
             background: rgba(24, 24, 27, 0.7);
             backdrop-filter: blur(12px);
             border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-zinc-950 text-zinc-200 font-sans antialiased min-h-screen selection:bg-amber-500/30">
+<body class="bg-zinc-950 text-zinc-200 antialiased min-h-screen selection:bg-amber-500/30">
 
     <!-- Login Screen -->
     <div id="loginScreen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950 px-4 transition-opacity duration-500">
-        <div class="text-center space-y-6 max-w-sm w-full glass-panel p-8 rounded-3xl border border-zinc-800">
+        <div class="text-center space-y-6 max-w-sm w-full glass-panel p-8 rounded-3xl border border-zinc-800 shadow-2xl">
             <h1 class="text-3xl font-light tracking-wide text-white">Our <span class="text-amber-500 font-medium">Ledger</span></h1>
             <p class="text-zinc-500 text-sm">Secure access required to view household budget.</p>
+            
             <button id="loginBtn" class="w-full bg-white text-zinc-900 font-medium rounded-xl py-3.5 flex items-center justify-center gap-3 hover:bg-zinc-200 active:scale-95 transition-all">
                 <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
                 Sign in with Google
             </button>
+
+            <!-- Local preview bypass (Only for testing UI mechanics without Firebase Auth) -->
+            <button id="previewBypassBtn" class="text-xs text-zinc-600 underline hover:text-zinc-400 mt-4">
+                Bypass Login (Test UI Mode)
+            </button>
         </div>
     </div>
 
-    <!-- Main App (Hidden initially) -->
+    <!-- Main App -->
     <div id="mainApp" class="hidden pb-24">
         <main class="max-w-md mx-auto p-4 space-y-6 mt-4">
-            <!-- Header -->
-            <header class="flex justify-between items-center">
-                <h1 class="text-2xl font-light tracking-wide text-white">Our <span class="text-amber-500 font-medium">Ledger</span></h1>
-                <div class="flex gap-2">
-                    <button onclick="exportToCSV()" class="text-xs font-medium text-zinc-400 hover:text-amber-500 transition-colors border border-zinc-800 px-3 py-1.5 rounded-full">
-                        CSV
-                    </button>
-                    <button id="logoutBtn" class="text-xs font-medium text-zinc-400 hover:text-red-400 transition-colors border border-zinc-800 px-3 py-1.5 rounded-full">
-                        Exit
-                    </button>
+            <!-- Header & Navigation -->
+            <header class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <h1 class="text-2xl font-light tracking-wide text-white">Our <span class="text-amber-500 font-medium">Ledger</span></h1>
+                    <div class="flex gap-2">
+                        <button onclick="exportToCSV()" class="text-xs font-medium text-zinc-400 hover:text-amber-500 transition-colors border border-zinc-800 px-3 py-1.5 rounded-full">CSV</button>
+                        <button id="logoutBtn" class="text-xs font-medium text-zinc-400 hover:text-red-400 transition-colors border border-zinc-800 px-3 py-1.5 rounded-full">Exit</button>
+                    </div>
                 </div>
+                <nav class="flex gap-2 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800">
+                    <button id="tabDashboard" class="flex-1 text-sm font-medium py-2 rounded-lg bg-zinc-800 text-white shadow transition-all">Dashboard</button>
+                    <button id="tabHistory" class="flex-1 text-sm font-medium py-2 rounded-lg text-zinc-400 hover:text-white transition-all">History</button>
+                </nav>
             </header>
 
-            <!-- Budget Progress Bar -->
-            <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl">
-                <div class="flex justify-between text-sm mb-2">
-                    <span class="text-zinc-400">Monthly Budget</span>
-                    <span class="font-medium text-amber-500" id="budgetRemaining">$0 Remaining</span>
-                </div>
-                <div class="w-full bg-zinc-950 rounded-full h-2.5 mb-2 overflow-hidden border border-zinc-800/50">
-                    <div id="budgetFill" class="bg-amber-500 h-2.5 rounded-full transition-all duration-700 w-0"></div>
-                </div>
-                <div class="flex justify-between text-xs text-zinc-500 font-mono mt-3">
-                    <span id="spentText">$0 spent</span>
-                    <span>$2000 total</span>
-                </div>
-            </section>
+            <!-- VIEW: DASHBOARD (Envelopes) -->
+            <div id="viewDashboard" class="space-y-6 block">
+                <!-- Global Summary -->
+                <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl">
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-zinc-400">Total Monthly Budget</span>
+                        <span class="font-medium text-amber-500" id="globalRemaining">$0 Remaining</span>
+                    </div>
+                    <div class="w-full bg-zinc-950 rounded-full h-2 mb-2 overflow-hidden border border-zinc-800/50">
+                        <div id="globalFill" class="bg-amber-500 h-full rounded-full transition-all duration-700 w-0"></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-zinc-500 font-mono mt-3">
+                        <span id="globalSpentText">$0 spent</span>
+                        <span id="globalTotalText">$0 total</span>
+                    </div>
+                </section>
 
-            <!-- Visualization -->
-            <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl">
-                <canvas id="expenseChart" height="200"></canvas>
-            </section>
+                <!-- Envelope Categories -->
+                <section>
+                    <div class="flex justify-between items-center mb-4 ml-1">
+                        <h2 class="text-sm font-medium text-zinc-500 uppercase tracking-widest">Envelopes</h2>
+                        <button onclick="toggleModal('editBudgetsModal')" class="text-xs text-amber-500 hover:text-amber-400 font-medium">Edit Limits</button>
+                    </div>
+                    <div id="envelopesList" class="space-y-4">
+                        <p class="text-sm text-zinc-600 text-center py-4 italic">Loading envelopes...</p>
+                    </div>
+                </section>
+                
+                <!-- Category Chart -->
+                <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
+                    <canvas id="expenseChart" height="200"></canvas>
+                </section>
+            </div>
 
-            <!-- Recent Transactions -->
-            <section>
-                <h2 class="text-sm font-medium text-zinc-500 uppercase tracking-widest mb-4 ml-1">Recent Activity</h2>
-                <div id="transactionsList" class="space-y-3">
-                    <p class="text-sm text-zinc-600 text-center py-4 italic">Loading ledger...</p>
-                </div>
-            </section>
+            <!-- VIEW: HISTORY (Search & Analytics) -->
+            <div id="viewHistory" class="space-y-6 hidden">
+                <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
+                    <input type="text" id="searchInput" class="w-full bg-zinc-950 border border-zinc-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all" placeholder="Search description, category, or source...">
+                </section>
+
+                <section>
+                    <h2 class="text-sm font-medium text-zinc-500 uppercase tracking-widest mb-4 ml-1">All Transactions</h2>
+                    <div id="historyList" class="space-y-3 max-h-[60vh] overflow-y-auto hide-scrollbar pb-4">
+                        <!-- Transactions injected here -->
+                    </div>
+                </section>
+            </div>
         </main>
 
         <!-- Floating Action Button -->
-        <div class="fixed bottom-6 left-0 w-full flex justify-center pointer-events-none">
-            <button onclick="toggleModal('expenseModal')" class="pointer-events-auto bg-amber-500 text-zinc-950 rounded-full w-14 h-14 shadow-[0_0_20px_rgba(245,158,11,0.3)] flex items-center justify-center text-3xl font-light hover:bg-amber-400 transition-transform active:scale-95 z-40">
+        <div class="fixed bottom-6 left-0 w-full flex justify-center pointer-events-none z-30">
+            <button onclick="toggleModal('expenseModal')" class="pointer-events-auto bg-amber-500 text-zinc-950 rounded-full w-14 h-14 shadow-[0_0_20px_rgba(245,158,11,0.3)] flex items-center justify-center text-3xl font-light hover:bg-amber-400 transition-transform active:scale-95">
                 +
             </button>
         </div>
 
-        <!-- Expense Entry Modal -->
-        <div id="expenseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity flex flex-col justify-end">
-            <div class="glass-panel w-full rounded-t-3xl p-6 shadow-2xl transform translate-y-full transition-transform duration-300" id="expenseModalContent">
+        <!-- Edit Budgets Modal -->
+        <div id="editBudgetsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity flex flex-col justify-end">
+            <div class="glass-panel w-full rounded-t-3xl p-6 shadow-2xl transform translate-y-full transition-transform duration-300 max-h-[90vh] overflow-y-auto hide-scrollbar" id="editBudgetsModalContent">
                 <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-xl text-white font-medium">Log Expense</h3>
-                    <button onclick="toggleModal('expenseModal')" class="text-zinc-500 hover:text-white text-xl">&times;</button>
+                    <h3 class="text-xl text-white font-medium">Manage Envelopes</h3>
+                    <button type="button" onclick="saveBudgetsAndClose()" class="text-zinc-500 hover:text-white text-2xl">&times;</button>
                 </div>
-                <form id="expenseForm" class="space-y-4">
-                    <div>
-                        <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Amount</label>
-                        <input type="number" id="amount" required step="0.01" class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 font-mono text-lg transition-all" placeholder="0.00">
+                <form id="editBudgetsForm" class="space-y-4">
+                    <div class="space-y-3 max-h-[40vh] overflow-y-auto hide-scrollbar" id="budgetInputsContainer">
+                        <!-- Inputs generated dynamically -->
                     </div>
-                    <div>
-                        <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Description</label>
-                        <input type="text" id="description" required class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all" placeholder="E.g., Dinner at generic spot">
+                    
+                    <!-- Add new category row -->
+                    <div class="flex items-center gap-2 mt-2 pt-4 border-t border-zinc-800">
+                        <input type="text" id="newCategoryName" placeholder="New envelope name..." class="flex-1 bg-zinc-950 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500">
+                        <input type="number" id="newCategoryLimit" placeholder="$ Limit" class="w-24 bg-zinc-950 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500">
+                        <button type="button" id="addNewCategoryBtn" class="bg-zinc-800 text-amber-500 hover:bg-zinc-700 hover:text-amber-400 font-medium px-4 py-2.5 rounded-lg text-sm transition-all border border-zinc-700">+</button>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Category</label>
-                            <select id="category" class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 appearance-none">
-                                <option value="Food">Food</option>
-                                <option value="Groceries">Groceries</option>
-                                <option value="Special Events">Special Events</option>
-                                <option value="Transport">Transport</option>
-                                <option value="Utilities">Utilities</option>
-                            </select>
-                        </div>
+
+                    <button type="submit" class="w-full bg-amber-500 text-zinc-950 font-semibold rounded-xl py-3.5 mt-4 hover:bg-amber-400 active:scale-95 transition-all shadow-lg shadow-amber-500/20">
+                        Save Limits
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Split Transaction Expense Modal -->
+        <div id="expenseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity flex flex-col justify-end">
+            <div class="glass-panel w-full rounded-t-3xl p-6 shadow-2xl transform translate-y-full transition-transform duration-300 max-h-[90vh] overflow-y-auto hide-scrollbar" id="expenseModalContent">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl text-white font-medium">Log Transaction</h3>
+                    <button onclick="toggleModal('expenseModal')" class="text-zinc-500 hover:text-white text-2xl">&times;</button>
+                </div>
+                <form id="expenseForm" class="space-y-6">
+                    <!-- Receipt Metadata -->
+                    <div class="grid grid-cols-2 gap-3 p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800">
                         <div>
                             <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Paid By</label>
-                            <select id="paidBy" class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 appearance-none">
-                                <option value="Me">Me</option>
-                                <option value="Partner">Partner</option>
+                            <select id="paidBy" class="w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 appearance-none text-sm">
+                                <option value="Roger">Roger</option>
+                                <option value="Noelle">Noelle</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Source</label>
+                            <select id="accountSource" class="w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 appearance-none text-sm">
+                                <option value="HSBC">HSBC</option>
+                                <option value="UOB">UOB</option>
+                                <option value="DBS">DBS</option>
+                                <option value="OCBC">OCBC</option>
+                                <option value="Personal Funds">Personal Funds</option>
                             </select>
                         </div>
                     </div>
-                    <button type="submit" class="w-full bg-amber-500 text-zinc-950 font-semibold rounded-xl py-3.5 mt-2 hover:bg-amber-400 active:scale-95 transition-all" id="submitBtn">
+
+                    <!-- Line Items Container -->
+                    <div id="lineItemsContainer" class="space-y-4">
+                        <!-- Initial Line Item -->
+                        <div class="line-item bg-zinc-900 p-4 rounded-2xl border border-zinc-800 relative shadow-inner">
+                            <div class="space-y-3">
+                                <div>
+                                    <input type="number" required step="0.01" class="item-amount w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-4 py-2.5 focus:outline-none focus:border-amber-500 font-mono text-lg transition-all" placeholder="$0.00">
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <input type="text" class="item-desc w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 text-sm transition-all" placeholder="Description (Optional)...">
+                                    <select required class="item-category w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 appearance-none text-sm">
+                                        <!-- Options populated dynamically by JS -->
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="button" id="addItemBtn" class="text-sm text-amber-500 hover:text-amber-400 font-medium flex items-center gap-1 ml-1">
+                        + Add another item to this receipt
+                    </button>
+
+                    <button type="submit" class="w-full bg-amber-500 text-zinc-950 font-semibold rounded-xl py-3.5 mt-4 hover:bg-amber-400 active:scale-95 transition-all shadow-lg shadow-amber-500/20" id="submitBtn">
                         Save to Ledger
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Edit Single Transaction Modal -->
+        <div id="editExpenseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity flex flex-col justify-end">
+            <div class="glass-panel w-full rounded-t-3xl p-6 shadow-2xl transform translate-y-full transition-transform duration-300 max-h-[90vh] overflow-y-auto hide-scrollbar" id="editExpenseModalContent">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl text-white font-medium">Edit Transaction</h3>
+                    <button onclick="toggleModal('editExpenseModal')" class="text-zinc-500 hover:text-white text-2xl">&times;</button>
+                </div>
+                <form id="editExpenseForm" class="space-y-6">
+                    <input type="hidden" id="editExpenseId">
+                    <div class="grid grid-cols-2 gap-3 p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800">
+                        <div>
+                            <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Paid By</label>
+                            <select id="editPaidBy" class="w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 appearance-none text-sm">
+                                <option value="Roger">Roger</option>
+                                <option value="Noelle">Noelle</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Source</label>
+                            <select id="editAccountSource" class="w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 appearance-none text-sm">
+                                <option value="HSBC">HSBC</option>
+                                <option value="UOB">UOB</option>
+                                <option value="DBS">DBS</option>
+                                <option value="OCBC">OCBC</option>
+                                <option value="Personal Funds">Personal Funds</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="bg-zinc-900 p-4 rounded-2xl border border-zinc-800 shadow-inner space-y-3">
+                        <div>
+                            <input type="number" id="editAmount" required step="0.01" class="w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-4 py-2.5 focus:outline-none focus:border-amber-500 font-mono text-lg transition-all" placeholder="$0.00">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <input type="text" id="editDesc" class="w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 text-sm transition-all" placeholder="Description (Optional)...">
+                            <select id="editCategory" required class="item-category w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 appearance-none text-sm">
+                                <!-- Options populated dynamically by JS -->
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-amber-500 text-zinc-950 font-semibold rounded-xl py-3.5 mt-4 hover:bg-amber-400 active:scale-95 transition-all shadow-lg shadow-amber-500/20" id="editSubmitBtn">
+                        Save Changes
                     </button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Application Logic with Firebase -->
+    <!-- Application Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, addDoc, onSnapshot, query, orderBy, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
+        // Your specific Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBALRC-6CYdz76UW7dcq1wsc84VUhqbv54",
             authDomain: "shared-ledger-b8aaf.firebaseapp.com",
@@ -144,155 +265,533 @@
         const provider = new GoogleAuthProvider();
 
         let expenses = [];
-        const budgetTotal = 2000;
-        let unsubscribeSnapshot = null;
+        let categories = [];
+        let budgets = {};
+        let unsubscribeExpenses = null;
+        let unsubscribeBudgets = null;
+        let isPreviewMode = false; // Used for local preview testing
 
-        // Authentication State Listener
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                document.getElementById('loginScreen').classList.add('hidden');
-                document.getElementById('mainApp').classList.remove('hidden');
-                
-                // Only load data if logged in
-                const q = query(collection(db, "expenses"), orderBy("date", "desc"));
-                unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
-                    expenses = [];
-                    snapshot.forEach((doc) => {
-                        expenses.push({ id: doc.id, ...doc.data() });
-                    });
-                    updateDashboard();
-                });
-            } else {
-                document.getElementById('loginScreen').classList.remove('hidden');
-                document.getElementById('mainApp').classList.add('hidden');
-                if (unsubscribeSnapshot) unsubscribeSnapshot();
-            }
+        // Custom Toast Notification (Replaces blocked browser alerts)
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-10 left-1/2 -translate-x-1/2 bg-zinc-800 text-white px-6 py-3 rounded-full shadow-2xl border border-zinc-700 z-[100] text-sm font-medium transition-all duration-300 opacity-0 -translate-y-4 pointer-events-none';
+            toast.innerText = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.classList.remove('opacity-0', '-translate-y-4'), 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-4');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // View Toggling (Dashboard / History)
+        const tabDash = document.getElementById('tabDashboard');
+        const tabHist = document.getElementById('tabHistory');
+        const viewDash = document.getElementById('viewDashboard');
+        const viewHist = document.getElementById('viewHistory');
+
+        tabDash.addEventListener('click', () => {
+            tabDash.classList.add('bg-zinc-800', 'text-white', 'shadow');
+            tabDash.classList.remove('text-zinc-400');
+            tabHist.classList.remove('bg-zinc-800', 'text-white', 'shadow');
+            tabHist.classList.add('text-zinc-400');
+            viewDash.classList.remove('hidden');
+            viewHist.classList.add('hidden');
         });
 
-        // Login & Logout Triggers
-        document.getElementById('loginBtn').addEventListener('click', () => {
-            signInWithPopup(auth, provider).catch(error => alert("Login failed: " + error.message));
-        });
-        
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            signOut(auth);
+        tabHist.addEventListener('click', () => {
+            tabHist.classList.add('bg-zinc-800', 'text-white', 'shadow');
+            tabHist.classList.remove('text-zinc-400');
+            tabDash.classList.remove('bg-zinc-800', 'text-white', 'shadow');
+            tabDash.classList.add('text-zinc-400');
+            viewHist.classList.remove('hidden');
+            viewDash.classList.add('hidden');
         });
 
-        // UI Interactions
+        // Modal Logic
         window.toggleModal = (modalId) => {
             const modal = document.getElementById(modalId);
             const content = document.getElementById(modalId + 'Content');
             if (modal.classList.contains('hidden')) {
+                // Populate Edit Budgets Modal before showing
+                if(modalId === 'editBudgetsModal') {
+                    populateEditBudgetsForm();
+                }
                 modal.classList.remove('hidden');
-                setTimeout(() => {
-                    modal.classList.remove('opacity-0');
-                    content.classList.remove('translate-y-full');
-                }, 10);
+                setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('translate-y-full'); }, 10);
             } else {
                 modal.classList.add('opacity-0');
                 content.classList.add('translate-y-full');
-                setTimeout(() => {
-                    modal.classList.add('hidden');
+                setTimeout(() => { 
+                    modal.classList.add('hidden'); 
+                    if(modalId === 'expenseModal') resetForm(); 
                 }, 300);
             }
         };
 
-        // Form Submission
-        document.getElementById('expenseForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const submitBtn = document.getElementById('submitBtn');
-            submitBtn.innerText = "Saving...";
-            submitBtn.disabled = true;
+        // Setup Application Data (Firebase or Mock)
+        function initAppData(uid) {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            
+            if (isPreviewMode) {
+                // Mock data for preview UI testing
+                budgets = { "Food": 500, "Groceries": 500, "Special Events": 300, "Transport": 200, "Utilities": 200 };
+                categories = Object.keys(budgets);
+                updateCategoryDropdowns();
+                updateDashboard();
+                renderHistory();
+                return;
+            }
 
-            try {
-                await addDoc(collection(db, "expenses"), {
-                    amount: parseFloat(document.getElementById('amount').value),
-                    description: document.getElementById('description').value,
-                    category: document.getElementById('category').value,
-                    paidBy: document.getElementById('paidBy').value,
-                    date: new Date().toISOString(),
-                    userId: auth.currentUser.uid // Tags expense with who logged it
-                });
-                e.target.reset();
-                toggleModal('expenseModal');
-            } catch (error) {
-                alert("Error saving expense.");
-            } finally {
-                submitBtn.innerText = "Save to Ledger";
-                submitBtn.disabled = false;
+            // Fetch Envelopes (Budgets)
+            const budgetRef = doc(db, "settings", "budgets");
+            unsubscribeBudgets = onSnapshot(budgetRef, (docSnap) => {
+                if (docSnap.exists() && docSnap.data().limits) {
+                    budgets = docSnap.data().limits;
+                } else {
+                    budgets = { "Food": 500, "Groceries": 500, "Transport": 200 };
+                    setDoc(budgetRef, { limits: budgets });
+                }
+                categories = Object.keys(budgets);
+                updateCategoryDropdowns();
+                updateDashboard();
+            });
+
+            // Fetch Expenses
+            const q = query(collection(db, "expenses"), orderBy("date", "desc"));
+            unsubscribeExpenses = onSnapshot(q, (snapshot) => {
+                expenses = [];
+                snapshot.forEach((doc) => { expenses.push({ id: doc.id, ...doc.data() }); });
+                updateDashboard();
+                renderHistory();
+            });
+        }
+
+        // Auth
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                initAppData(user.uid);
+            } else {
+                if (!isPreviewMode) {
+                    document.getElementById('loginScreen').classList.remove('hidden');
+                    document.getElementById('mainApp').classList.add('hidden');
+                    if (unsubscribeExpenses) unsubscribeExpenses();
+                    if (unsubscribeBudgets) unsubscribeBudgets();
+                }
             }
         });
 
-        // Dashboard Updates
-        function updateDashboard() {
-            const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-            const remaining = budgetTotal - totalSpent;
-            const percentage = Math.min((totalSpent / budgetTotal) * 100, 100);
+        // Log in triggers
+        document.getElementById('loginBtn').addEventListener('click', () => {
+            signInWithPopup(auth, provider).catch(error => showToast("Login failed: " + error.message));
+        });
+        
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            isPreviewMode = false;
+            signOut(auth);
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+        });
 
-            document.getElementById('spentText').innerText = `$${totalSpent.toFixed(2)} spent`;
-            document.getElementById('budgetRemaining').innerText = `$${remaining.toFixed(2)} Remaining`;
+        // PREVIEW BYPASS: For testing in the current iframe without triggering domain auth errors
+        document.getElementById('previewBypassBtn').addEventListener('click', () => {
+            isPreviewMode = true;
+            initAppData('mock-uid-123');
+        });
+
+        // ----------------------------------------------------
+        // DYNAMIC CATEGORY DROPDOWN UPDATER
+        // ----------------------------------------------------
+        function updateCategoryDropdowns() {
+            const selects = document.querySelectorAll('.item-category');
+            selects.forEach(select => {
+                const currentVal = select.value;
+                select.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+                if (categories.includes(currentVal)) {
+                    select.value = currentVal;
+                } else if (categories.length > 0) {
+                    select.value = categories[0];
+                }
+            });
+        }
+
+        // ----------------------------------------------------
+        // EDIT BUDGETS MODAL LOGIC
+        // ----------------------------------------------------
+        function populateEditBudgetsForm() {
+            const container = document.getElementById('budgetInputsContainer');
+            container.innerHTML = categories.map(cat => `
+                <div class="flex items-center justify-between bg-zinc-900 border border-zinc-800 p-3 rounded-xl gap-3">
+                    <button type="button" class="text-zinc-500 hover:text-red-500 transition-colors shrink-0" onclick="deleteCategory('${cat.replace(/'/g, "\\'")}')">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                    <label class="text-sm font-medium text-white flex-1 truncate">${cat}</label>
+                    <div class="relative w-28 shrink-0">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">$</span>
+                        <input type="number" step="1" min="0" data-category="${cat}" value="${budgets[cat] || 0}" 
+                               class="budget-input w-full bg-zinc-950 border border-zinc-700 text-white rounded-lg pl-7 pr-3 py-2 focus:outline-none focus:border-amber-500 font-mono text-sm transition-all text-right">
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.deleteCategory = async (cat) => {
+            // Read current inputs so uncommitted typed limits aren't lost
+            const inputs = document.querySelectorAll('.budget-input');
+            let currentBudgets = {};
+            inputs.forEach(input => {
+                const c = input.getAttribute('data-category');
+                if (c !== cat) currentBudgets[c] = parseFloat(input.value) || 0;
+            });
             
-            const budgetFill = document.getElementById('budgetFill');
-            budgetFill.style.width = `${percentage}%`;
-            budgetFill.className = `h-2.5 rounded-full transition-all duration-700 ${percentage > 90 ? 'bg-red-500' : 'bg-amber-500'}`;
-
-            const list = document.getElementById('transactionsList');
-            if (expenses.length === 0) {
-                list.innerHTML = `<p class="text-sm text-zinc-600 text-center py-4 italic">No expenses recorded yet.</p>`;
+            budgets = currentBudgets;
+            categories = Object.keys(budgets);
+            populateEditBudgetsForm();
+            updateCategoryDropdowns();
+            updateDashboard();
+            
+            if (!isPreviewMode) {
+                try {
+                    await setDoc(doc(db, "settings", "budgets"), { limits: budgets });
+                    showToast("Category deleted.");
+                } catch(error) {
+                    showToast("Failed to delete: " + error.message);
+                }
             } else {
-                list.innerHTML = expenses.map(exp => `
-                    <div class="flex justify-between items-center bg-zinc-900 border border-zinc-800 p-4 rounded-xl">
-                        <div>
-                            <p class="text-white font-medium">${exp.description}</p>
-                            <p class="text-xs text-zinc-500 mt-1">${exp.category} • Paid by ${exp.paidBy}</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-white font-mono">$${exp.amount.toFixed(2)}</p>
-                            <p class="text-xs text-zinc-600 mt-1">${new Date(exp.date).toLocaleDateString()}</p>
+                showToast("Category deleted.");
+            }
+        };
+
+        document.getElementById('addNewCategoryBtn').addEventListener('click', async () => {
+            const nameInput = document.getElementById('newCategoryName');
+            const limitInput = document.getElementById('newCategoryLimit');
+            const name = nameInput.value.trim();
+            const limit = parseFloat(limitInput.value) || 0;
+            
+            if (!name) return showToast("Please enter a category name.");
+            if (categories.includes(name)) return showToast("Category already exists.");
+            
+            // Read current inputs so uncommitted typed limits aren't lost
+            const inputs = document.querySelectorAll('.budget-input');
+            let currentBudgets = {};
+            inputs.forEach(input => {
+                const c = input.getAttribute('data-category');
+                currentBudgets[c] = parseFloat(input.value) || 0;
+            });
+            
+            currentBudgets[name] = limit;
+            budgets = currentBudgets;
+            categories = Object.keys(budgets);
+            
+            nameInput.value = '';
+            limitInput.value = '';
+            populateEditBudgetsForm();
+            updateCategoryDropdowns();
+            updateDashboard();
+            
+            // Auto-scroll to the bottom to see the new item
+            const container = document.getElementById('budgetInputsContainer');
+            container.scrollTop = container.scrollHeight;
+            
+            if (!isPreviewMode) {
+                try {
+                    await setDoc(doc(db, "settings", "budgets"), { limits: budgets });
+                    showToast("Category added.");
+                } catch(error) {
+                    showToast("Failed to add: " + error.message);
+                }
+            } else {
+                showToast("Category added.");
+            }
+        });
+
+        window.saveBudgetsAndClose = async () => {
+            const inputs = document.querySelectorAll('.budget-input');
+            let newBudgets = {};
+            
+            inputs.forEach(input => {
+                const cat = input.getAttribute('data-category');
+                newBudgets[cat] = parseFloat(input.value) || 0;
+            });
+
+            budgets = newBudgets;
+            categories = Object.keys(budgets);
+            updateCategoryDropdowns();
+            updateDashboard();
+            
+            if (!isPreviewMode) {
+                try {
+                    await setDoc(doc(db, "settings", "budgets"), { limits: newBudgets });
+                    showToast("Limits saved successfully!");
+                } catch(error) {
+                    showToast("Failed to save budgets: " + error.message);
+                }
+            } else {
+                showToast("Limits saved.");
+            }
+            toggleModal('editBudgetsModal');
+        };
+
+        document.getElementById('editBudgetsForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveBudgetsAndClose();
+        });
+
+
+        // ----------------------------------------------------
+        // DYNAMIC SPLIT FORM LOGIC
+        // ----------------------------------------------------
+        document.getElementById('addItemBtn').addEventListener('click', () => {
+            const container = document.getElementById('lineItemsContainer');
+            const itemHTML = `
+                <div class="line-item bg-zinc-900 p-4 rounded-2xl border border-zinc-800 relative shadow-inner mt-4">
+                    <button type="button" class="absolute -top-3 -right-2 bg-zinc-800 text-zinc-400 rounded-full w-7 h-7 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors border border-zinc-700" onclick="this.parentElement.remove()">&times;</button>
+                    <div class="space-y-3">
+                        <input type="number" required step="0.01" class="item-amount w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-4 py-2.5 focus:outline-none focus:border-amber-500 font-mono text-lg transition-all" placeholder="$0.00">
+                        <div class="grid grid-cols-2 gap-3">
+                            <input type="text" class="item-desc w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 text-sm transition-all" placeholder="Description (Optional)...">
+                            <select required class="item-category w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 text-sm appearance-none">
+                                ${categories.map(c => `<option value="${c}">${c}</option>`).join('')}
+                            </select>
                         </div>
                     </div>
-                `).join('');
-            }
-            updateChart();
+                </div>`;
+            container.insertAdjacentHTML('beforeend', itemHTML);
+        });
+
+        function resetForm() {
+            document.getElementById('expenseForm').reset();
+            const container = document.getElementById('lineItemsContainer');
+            while(container.children.length > 1) container.removeChild(container.lastChild);
         }
+
+        // Save Split Transactions
+        document.getElementById('expenseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.innerText = "Saving..."; submitBtn.disabled = true;
+
+            const paidBy = document.getElementById('paidBy').value;
+            const accountSource = document.getElementById('accountSource').value;
+            const date = new Date().toISOString();
+            const groupId = Date.now().toString(); // Ties split items together
+            const userId = isPreviewMode ? 'mock-uid' : auth.currentUser.uid;
+
+            const lineItems = document.querySelectorAll('.line-item');
+            
+            try {
+                const newEntries = Array.from(lineItems).map(item => {
+                    return {
+                        amount: parseFloat(item.querySelector('.item-amount').value),
+                        description: item.querySelector('.item-desc').value.trim() || "No description",
+                        category: item.querySelector('.item-category').value,
+                        paidBy, accountSource, date, userId, groupId
+                    };
+                });
+
+                if (isPreviewMode) {
+                    expenses = [...newEntries.map(e => ({id: Math.random().toString(), ...e})), ...expenses];
+                    updateDashboard();
+                    renderHistory();
+                    showToast("Test expense logged.");
+                } else {
+                    const promises = newEntries.map(entry => addDoc(collection(db, "expenses"), entry));
+                    await Promise.all(promises);
+                    showToast("Expense logged successfully!");
+                }
+                toggleModal('expenseModal');
+            } catch (error) {
+                showToast("Error saving transaction.");
+            } finally {
+                submitBtn.innerText = "Save to Ledger"; submitBtn.disabled = false;
+            }
+        });
+
+        // Dashboard (Envelopes) Calculation
+        function updateDashboard() {
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            const monthExpenses = expenses.filter(e => {
+                const d = new Date(e.date);
+                return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+            });
+
+            // Global Calculate (sum of category budgets)
+            const totalBudget = Object.values(budgets).reduce((a, b) => a + b, 0);
+            const totalSpent = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+            const globalPerc = totalBudget > 0 ? Math.min((totalSpent / totalBudget) * 100, 100) : 0;
+
+            document.getElementById('globalSpentText').innerText = `$${totalSpent.toFixed(2)} spent`;
+            document.getElementById('globalTotalText').innerText = `$${totalBudget.toFixed(2)} total`;
+            document.getElementById('globalRemaining').innerText = `$${(totalBudget - totalSpent).toFixed(2)} Remaining`;
+            document.getElementById('globalFill').style.width = `${globalPerc}%`;
+            document.getElementById('globalFill').className = `h-full rounded-full transition-all duration-700 ${globalPerc > 90 ? 'bg-red-500' : 'bg-amber-500'}`;
+
+            // Envelopes Rendering
+            const catSpent = {};
+            categories.forEach(c => catSpent[c] = 0);
+            monthExpenses.forEach(e => { if(catSpent[e.category] !== undefined) catSpent[e.category] += e.amount; });
+
+            const envList = document.getElementById('envelopesList');
+            envList.innerHTML = categories.map(cat => {
+                const b = budgets[cat] || 0;
+                const s = catSpent[cat];
+                const p = b > 0 ? Math.min((s / b) * 100, 100) : 100;
+                const over = s > b;
+                return `
+                    <div class="bg-zinc-900 border border-zinc-800 p-4 rounded-xl shadow-md">
+                        <div class="flex justify-between text-sm mb-2">
+                            <span class="text-white">${cat}</span>
+                            <span class="${over ? 'text-red-400 font-medium' : 'text-zinc-400'}">$${(b - s).toFixed(0)} left</span>
+                        </div>
+                        <div class="w-full bg-zinc-950 rounded-full h-1.5 mb-2 overflow-hidden border border-zinc-800/50">
+                            <div class="h-full rounded-full transition-all duration-700 ${over ? 'bg-red-500' : 'bg-zinc-400'}" style="width: ${p}%"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-zinc-500 font-mono">
+                            <span>$${s.toFixed(0)} spent</span>
+                            <span>$${b.toFixed(0)} cap</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            updateChart(catSpent);
+        }
+
+        // History & Search Rendering
+        function renderHistory(filterText = "") {
+            const list = document.getElementById('historyList');
+            const filtered = expenses.filter(e => {
+                const term = filterText.toLowerCase();
+                return e.description.toLowerCase().includes(term) || 
+                       e.category.toLowerCase().includes(term) || 
+                       (e.accountSource && e.accountSource.toLowerCase().includes(term));
+            });
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<p class="text-sm text-zinc-600 text-center py-4 italic">No transactions found.</p>`;
+                return;
+            }
+
+            list.innerHTML = filtered.map(exp => `
+                <div class="flex justify-between items-center bg-zinc-900 border border-zinc-800 p-4 rounded-xl shadow-md">
+                    <div>
+                        <p class="text-white font-medium text-sm">${exp.description}</p>
+                        <p class="text-xs text-zinc-500 mt-1">${exp.category} • <span class="text-amber-500/70">${exp.accountSource || 'N/A'}</span> (${exp.paidBy})</p>
+                    </div>
+                    <div class="text-right flex flex-col items-end">
+                        <p class="text-white font-mono font-medium">$${exp.amount.toFixed(2)}</p>
+                        <p class="text-xs text-zinc-600 mt-1">${new Date(exp.date).toLocaleDateString()}</p>
+                        <div class="flex gap-3 mt-2">
+                            <button onclick="editExpense('${exp.id}')" class="text-zinc-500 hover:text-amber-500 transition-colors" title="Edit">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                            </button>
+                            <button onclick="deleteExpense('${exp.id}')" class="text-zinc-500 hover:text-red-500 transition-colors" title="Delete">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('searchInput').addEventListener('input', (e) => renderHistory(e.target.value));
+
+        // ----------------------------------------------------
+        // EDIT & DELETE TRANSACTIONS LOGIC
+        // ----------------------------------------------------
+        window.deleteExpense = async (id) => {
+            if (isPreviewMode) {
+                expenses = expenses.filter(e => e.id !== id);
+                updateDashboard();
+                renderHistory(document.getElementById('searchInput').value);
+                showToast("Transaction deleted.");
+                return;
+            }
+            try {
+                await deleteDoc(doc(db, "expenses", id));
+                showToast("Transaction deleted.");
+            } catch (error) {
+                showToast("Error deleting transaction: " + error.message);
+            }
+        };
+
+        window.editExpense = (id) => {
+            const exp = expenses.find(e => e.id === id);
+            if (!exp) return;
+            
+            document.getElementById('editExpenseId').value = id;
+            document.getElementById('editPaidBy').value = exp.paidBy;
+            document.getElementById('editAccountSource').value = exp.accountSource;
+            document.getElementById('editAmount').value = exp.amount;
+            document.getElementById('editDesc').value = exp.description !== "No description" ? exp.description : "";
+            document.getElementById('editCategory').value = exp.category;
+            
+            toggleModal('editExpenseModal');
+        };
+
+        document.getElementById('editExpenseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = document.getElementById('editSubmitBtn');
+            submitBtn.innerText = "Saving..."; submitBtn.disabled = true;
+
+            const id = document.getElementById('editExpenseId').value;
+            const updatedData = {
+                paidBy: document.getElementById('editPaidBy').value,
+                accountSource: document.getElementById('editAccountSource').value,
+                amount: parseFloat(document.getElementById('editAmount').value),
+                description: document.getElementById('editDesc').value.trim() || "No description",
+                category: document.getElementById('editCategory').value
+            };
+
+            try {
+                if (isPreviewMode) {
+                    const index = expenses.findIndex(e => e.id === id);
+                    if(index > -1) expenses[index] = { ...expenses[index], ...updatedData };
+                    updateDashboard();
+                    renderHistory(document.getElementById('searchInput').value);
+                    showToast("Transaction updated.");
+                } else {
+                    await updateDoc(doc(db, "expenses", id), updatedData);
+                    showToast("Transaction updated successfully!");
+                }
+                toggleModal('editExpenseModal');
+            } catch (error) {
+                showToast("Error updating transaction.");
+            } finally {
+                submitBtn.innerText = "Save Changes"; submitBtn.disabled = false;
+            }
+        });
 
         // Chart.js Setup
         let chartInstance = null;
-        function updateChart() {
+        function updateChart(catSpent) {
             const ctx = document.getElementById('expenseChart').getContext('2d');
-            const categoryTotals = expenses.reduce((acc, exp) => {
-                acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
-                return acc;
-            }, {});
-
             if(chartInstance) chartInstance.destroy();
             Chart.defaults.color = '#71717a';
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: Object.keys(categoryTotals),
+                    labels: Object.keys(catSpent),
                     datasets: [{
-                        data: Object.values(categoryTotals),
+                        data: Object.values(catSpent),
                         backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'],
-                        borderWidth: 0,
-                        hoverOffset: 4
+                        borderWidth: 0, hoverOffset: 4
                     }]
                 },
-                options: { cutout: '75%', plugins: { legend: { position: 'right', labels: { usePointStyle: true, padding: 20 } } } }
+                options: { cutout: '75%', plugins: { legend: { position: 'right', labels: { usePointStyle: true, padding: 15, font: { size: 11, family: "'Inter', sans-serif" } } } } }
             });
         }
 
         // CSV Export
         window.exportToCSV = () => {
-            if(expenses.length === 0) return;
-            const headers = ['Date', 'Description', 'Category', 'Paid By', 'Amount'];
-            const rows = expenses.map(e => [new Date(e.date).toLocaleDateString(), `"${e.description}"`, e.category, e.paidBy, e.amount]);
+            if(expenses.length === 0) return showToast("No data to export.");
+            const headers = ['Date', 'Description', 'Category', 'Paid By', 'Source', 'Amount'];
+            const rows = expenses.map(e => [new Date(e.date).toLocaleDateString(), `"${e.description}"`, e.category, e.paidBy, e.accountSource || 'N/A', e.amount]);
             const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = "our_expenses.csv";
-            link.click();
+            const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "our_ledger_export.csv"; link.click();
         };
     </script>
 </body>

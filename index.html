@@ -14,92 +14,112 @@
         }
     </style>
 </head>
-<body class="bg-zinc-950 text-zinc-200 font-sans antialiased min-h-screen pb-24 selection:bg-amber-500/30">
+<body class="bg-zinc-950 text-zinc-200 font-sans antialiased min-h-screen selection:bg-amber-500/30">
 
-    <main class="max-w-md mx-auto p-4 space-y-6 mt-4">
-        <!-- Header -->
-        <header class="flex justify-between items-center">
-            <h1 class="text-2xl font-light tracking-wide text-white">Our <span class="text-amber-500 font-medium">Ledger</span></h1>
-            <button onclick="exportToCSV()" class="text-xs font-medium text-zinc-400 hover:text-amber-500 transition-colors border border-zinc-800 px-3 py-1.5 rounded-full">
-                Export CSV
+    <!-- Login Screen -->
+    <div id="loginScreen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950 px-4 transition-opacity duration-500">
+        <div class="text-center space-y-6 max-w-sm w-full glass-panel p-8 rounded-3xl border border-zinc-800">
+            <h1 class="text-3xl font-light tracking-wide text-white">Our <span class="text-amber-500 font-medium">Ledger</span></h1>
+            <p class="text-zinc-500 text-sm">Secure access required to view household budget.</p>
+            <button id="loginBtn" class="w-full bg-white text-zinc-900 font-medium rounded-xl py-3.5 flex items-center justify-center gap-3 hover:bg-zinc-200 active:scale-95 transition-all">
+                <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                Sign in with Google
             </button>
-        </header>
-
-        <!-- Budget Progress Bar -->
-        <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl">
-            <div class="flex justify-between text-sm mb-2">
-                <span class="text-zinc-400">Monthly Budget</span>
-                <span class="font-medium text-amber-500" id="budgetRemaining">$0 Remaining</span>
-            </div>
-            <div class="w-full bg-zinc-950 rounded-full h-2.5 mb-2 overflow-hidden border border-zinc-800/50">
-                <div id="budgetFill" class="bg-amber-500 h-2.5 rounded-full transition-all duration-700 w-0"></div>
-            </div>
-            <div class="flex justify-between text-xs text-zinc-500 font-mono mt-3">
-                <span id="spentText">$0 spent</span>
-                <span>$2000 total</span>
-            </div>
-        </section>
-
-        <!-- Visualization -->
-        <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl">
-            <canvas id="expenseChart" height="200"></canvas>
-        </section>
-
-        <!-- Recent Transactions -->
-        <section>
-            <h2 class="text-sm font-medium text-zinc-500 uppercase tracking-widest mb-4 ml-1">Recent Activity</h2>
-            <div id="transactionsList" class="space-y-3">
-                <p class="text-sm text-zinc-600 text-center py-4 italic">Loading ledger...</p>
-            </div>
-        </section>
-    </main>
-
-    <!-- Floating Action Button -->
-    <div class="fixed bottom-6 left-0 w-full flex justify-center pointer-events-none">
-        <button onclick="toggleModal('expenseModal')" class="pointer-events-auto bg-amber-500 text-zinc-950 rounded-full w-14 h-14 shadow-[0_0_20px_rgba(245,158,11,0.3)] flex items-center justify-center text-3xl font-light hover:bg-amber-400 transition-transform active:scale-95 z-40">
-            +
-        </button>
+        </div>
     </div>
 
-    <!-- Expense Entry Modal -->
-    <div id="expenseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity flex flex-col justify-end">
-        <div class="glass-panel w-full rounded-t-3xl p-6 shadow-2xl transform translate-y-full transition-transform duration-300" id="expenseModalContent">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl text-white font-medium">Log Expense</h3>
-                <button onclick="toggleModal('expenseModal')" class="text-zinc-500 hover:text-white text-xl">&times;</button>
+    <!-- Main App (Hidden initially) -->
+    <div id="mainApp" class="hidden pb-24">
+        <main class="max-w-md mx-auto p-4 space-y-6 mt-4">
+            <!-- Header -->
+            <header class="flex justify-between items-center">
+                <h1 class="text-2xl font-light tracking-wide text-white">Our <span class="text-amber-500 font-medium">Ledger</span></h1>
+                <div class="flex gap-2">
+                    <button onclick="exportToCSV()" class="text-xs font-medium text-zinc-400 hover:text-amber-500 transition-colors border border-zinc-800 px-3 py-1.5 rounded-full">
+                        CSV
+                    </button>
+                    <button id="logoutBtn" class="text-xs font-medium text-zinc-400 hover:text-red-400 transition-colors border border-zinc-800 px-3 py-1.5 rounded-full">
+                        Exit
+                    </button>
+                </div>
+            </header>
+
+            <!-- Budget Progress Bar -->
+            <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl">
+                <div class="flex justify-between text-sm mb-2">
+                    <span class="text-zinc-400">Monthly Budget</span>
+                    <span class="font-medium text-amber-500" id="budgetRemaining">$0 Remaining</span>
+                </div>
+                <div class="w-full bg-zinc-950 rounded-full h-2.5 mb-2 overflow-hidden border border-zinc-800/50">
+                    <div id="budgetFill" class="bg-amber-500 h-2.5 rounded-full transition-all duration-700 w-0"></div>
+                </div>
+                <div class="flex justify-between text-xs text-zinc-500 font-mono mt-3">
+                    <span id="spentText">$0 spent</span>
+                    <span>$2000 total</span>
+                </div>
+            </section>
+
+            <!-- Visualization -->
+            <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl">
+                <canvas id="expenseChart" height="200"></canvas>
+            </section>
+
+            <!-- Recent Transactions -->
+            <section>
+                <h2 class="text-sm font-medium text-zinc-500 uppercase tracking-widest mb-4 ml-1">Recent Activity</h2>
+                <div id="transactionsList" class="space-y-3">
+                    <p class="text-sm text-zinc-600 text-center py-4 italic">Loading ledger...</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Floating Action Button -->
+        <div class="fixed bottom-6 left-0 w-full flex justify-center pointer-events-none">
+            <button onclick="toggleModal('expenseModal')" class="pointer-events-auto bg-amber-500 text-zinc-950 rounded-full w-14 h-14 shadow-[0_0_20px_rgba(245,158,11,0.3)] flex items-center justify-center text-3xl font-light hover:bg-amber-400 transition-transform active:scale-95 z-40">
+                +
+            </button>
+        </div>
+
+        <!-- Expense Entry Modal -->
+        <div id="expenseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity flex flex-col justify-end">
+            <div class="glass-panel w-full rounded-t-3xl p-6 shadow-2xl transform translate-y-full transition-transform duration-300" id="expenseModalContent">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl text-white font-medium">Log Expense</h3>
+                    <button onclick="toggleModal('expenseModal')" class="text-zinc-500 hover:text-white text-xl">&times;</button>
+                </div>
+                <form id="expenseForm" class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Amount</label>
+                        <input type="number" id="amount" required step="0.01" class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 font-mono text-lg transition-all" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Description</label>
+                        <input type="text" id="description" required class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all" placeholder="E.g., Dinner at generic spot">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Category</label>
+                            <select id="category" class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 appearance-none">
+                                <option value="Food">Food</option>
+                                <option value="Groceries">Groceries</option>
+                                <option value="Special Events">Special Events</option>
+                                <option value="Transport">Transport</option>
+                                <option value="Utilities">Utilities</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Paid By</label>
+                            <select id="paidBy" class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 appearance-none">
+                                <option value="Me">Me</option>
+                                <option value="Partner">Partner</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-amber-500 text-zinc-950 font-semibold rounded-xl py-3.5 mt-2 hover:bg-amber-400 active:scale-95 transition-all" id="submitBtn">
+                        Save to Ledger
+                    </button>
+                </form>
             </div>
-            <form id="expenseForm" class="space-y-4">
-                <div>
-                    <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Amount</label>
-                    <input type="number" id="amount" required step="0.01" class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 font-mono text-lg transition-all" placeholder="0.00">
-                </div>
-                <div>
-                    <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Description</label>
-                    <input type="text" id="description" required class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all" placeholder="E.g., Dinner at generic spot">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Category</label>
-                        <select id="category" class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 appearance-none">
-                            <option value="Food">Food</option>
-                            <option value="Groceries">Groceries</option>
-                            <option value="Special Events">Special Events</option>
-                            <option value="Transport">Transport</option>
-                            <option value="Utilities">Utilities</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Paid By</label>
-                        <select id="paidBy" class="w-full bg-zinc-900 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 appearance-none">
-                            <option value="Me">Me</option>
-                            <option value="Partner">Partner</option>
-                        </select>
-                    </div>
-                </div>
-                <button type="submit" class="w-full bg-amber-500 text-zinc-950 font-semibold rounded-xl py-3.5 mt-2 hover:bg-amber-400 active:scale-95 transition-all" id="submitBtn">
-                    Save to Ledger
-                </button>
-            </form>
         </div>
     </div>
 
@@ -107,8 +127,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-        // Your provided Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBALRC-6CYdz76UW7dcq1wsc84VUhqbv54",
             authDomain: "shared-ledger-b8aaf.firebaseapp.com",
@@ -120,9 +140,43 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
 
         let expenses = [];
         const budgetTotal = 2000;
+        let unsubscribeSnapshot = null;
+
+        // Authentication State Listener
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                
+                // Only load data if logged in
+                const q = query(collection(db, "expenses"), orderBy("date", "desc"));
+                unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+                    expenses = [];
+                    snapshot.forEach((doc) => {
+                        expenses.push({ id: doc.id, ...doc.data() });
+                    });
+                    updateDashboard();
+                });
+            } else {
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('mainApp').classList.add('hidden');
+                if (unsubscribeSnapshot) unsubscribeSnapshot();
+            }
+        });
+
+        // Login & Logout Triggers
+        document.getElementById('loginBtn').addEventListener('click', () => {
+            signInWithPopup(auth, provider).catch(error => alert("Login failed: " + error.message));
+        });
+        
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            signOut(auth);
+        });
 
         // UI Interactions
         window.toggleModal = (modalId) => {
@@ -143,38 +197,26 @@
             }
         };
 
-        // Fetch Data from Firebase in Real-Time
-        const q = query(collection(db, "expenses"), orderBy("date", "desc"));
-        onSnapshot(q, (snapshot) => {
-            expenses = [];
-            snapshot.forEach((doc) => {
-                expenses.push({ id: doc.id, ...doc.data() });
-            });
-            updateDashboard();
-        });
-
-        // Form Submission to Firebase
+        // Form Submission
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = document.getElementById('submitBtn');
             submitBtn.innerText = "Saving...";
             submitBtn.disabled = true;
 
-            const amount = parseFloat(document.getElementById('amount').value);
-            const description = document.getElementById('description').value;
-            const category = document.getElementById('category').value;
-            const paidBy = document.getElementById('paidBy').value;
-            const date = new Date().toISOString();
-
             try {
                 await addDoc(collection(db, "expenses"), {
-                    amount, description, category, paidBy, date
+                    amount: parseFloat(document.getElementById('amount').value),
+                    description: document.getElementById('description').value,
+                    category: document.getElementById('category').value,
+                    paidBy: document.getElementById('paidBy').value,
+                    date: new Date().toISOString(),
+                    userId: auth.currentUser.uid // Tags expense with who logged it
                 });
                 e.target.reset();
                 toggleModal('expenseModal');
             } catch (error) {
-                alert("Error saving expense. Please check connection.");
-                console.error("Error adding document: ", error);
+                alert("Error saving expense.");
             } finally {
                 submitBtn.innerText = "Save to Ledger";
                 submitBtn.disabled = false;
@@ -194,7 +236,6 @@
             budgetFill.style.width = `${percentage}%`;
             budgetFill.className = `h-2.5 rounded-full transition-all duration-700 ${percentage > 90 ? 'bg-red-500' : 'bg-amber-500'}`;
 
-            // Render List
             const list = document.getElementById('transactionsList');
             if (expenses.length === 0) {
                 list.innerHTML = `<p class="text-sm text-zinc-600 text-center py-4 italic">No expenses recorded yet.</p>`;
@@ -212,7 +253,6 @@
                     </div>
                 `).join('');
             }
-
             updateChart();
         }
 
@@ -220,14 +260,12 @@
         let chartInstance = null;
         function updateChart() {
             const ctx = document.getElementById('expenseChart').getContext('2d');
-            
             const categoryTotals = expenses.reduce((acc, exp) => {
                 acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
                 return acc;
             }, {});
 
             if(chartInstance) chartInstance.destroy();
-            
             Chart.defaults.color = '#71717a';
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
@@ -240,26 +278,15 @@
                         hoverOffset: 4
                     }]
                 },
-                options: {
-                    cutout: '75%',
-                    plugins: {
-                        legend: { position: 'right', labels: { usePointStyle: true, padding: 20 } }
-                    }
-                }
+                options: { cutout: '75%', plugins: { legend: { position: 'right', labels: { usePointStyle: true, padding: 20 } } } }
             });
         }
 
         // CSV Export
         window.exportToCSV = () => {
-            if(expenses.length === 0) return alert("No expenses to export.");
+            if(expenses.length === 0) return;
             const headers = ['Date', 'Description', 'Category', 'Paid By', 'Amount'];
-            const rows = expenses.map(e => [
-                new Date(e.date).toLocaleDateString(), 
-                `"${e.description}"`, 
-                e.category, 
-                e.paidBy, 
-                e.amount
-            ]);
+            const rows = expenses.map(e => [new Date(e.date).toLocaleDateString(), `"${e.description}"`, e.category, e.paidBy, e.amount]);
             const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");

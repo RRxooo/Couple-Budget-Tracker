@@ -30,11 +30,6 @@
                 <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
                 Sign in with Google
             </button>
-
-            <!-- Local preview bypass (Only for testing UI mechanics without Firebase Auth) -->
-            <button id="previewBypassBtn" class="text-xs text-zinc-600 underline hover:text-zinc-400 mt-4">
-                Bypass Login (Test UI Mode)
-            </button>
         </div>
     </div>
 
@@ -269,7 +264,6 @@
         let budgets = {};
         let unsubscribeExpenses = null;
         let unsubscribeBudgets = null;
-        let isPreviewMode = false; // Used for local preview testing
 
         // Custom Toast Notification (Replaces blocked browser alerts)
         function showToast(message) {
@@ -329,20 +323,10 @@
             }
         };
 
-        // Setup Application Data (Firebase or Mock)
+        // Setup Application Data via Firebase
         function initAppData(uid) {
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden');
-            
-            if (isPreviewMode) {
-                // Mock data for preview UI testing
-                budgets = { "Food": 500, "Groceries": 500, "Special Events": 300, "Transport": 200, "Utilities": 200 };
-                categories = Object.keys(budgets);
-                updateCategoryDropdowns();
-                updateDashboard();
-                renderHistory();
-                return;
-            }
 
             // Fetch Envelopes (Budgets)
             const budgetRef = doc(db, "settings", "budgets");
@@ -373,12 +357,10 @@
             if (user) {
                 initAppData(user.uid);
             } else {
-                if (!isPreviewMode) {
-                    document.getElementById('loginScreen').classList.remove('hidden');
-                    document.getElementById('mainApp').classList.add('hidden');
-                    if (unsubscribeExpenses) unsubscribeExpenses();
-                    if (unsubscribeBudgets) unsubscribeBudgets();
-                }
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('mainApp').classList.add('hidden');
+                if (unsubscribeExpenses) unsubscribeExpenses();
+                if (unsubscribeBudgets) unsubscribeBudgets();
             }
         });
 
@@ -388,16 +370,9 @@
         });
         
         document.getElementById('logoutBtn').addEventListener('click', () => {
-            isPreviewMode = false;
             signOut(auth);
             document.getElementById('loginScreen').classList.remove('hidden');
             document.getElementById('mainApp').classList.add('hidden');
-        });
-
-        // PREVIEW BYPASS: For testing in the current iframe without triggering domain auth errors
-        document.getElementById('previewBypassBtn').addEventListener('click', () => {
-            isPreviewMode = true;
-            initAppData('mock-uid-123');
         });
 
         // ----------------------------------------------------
@@ -451,15 +426,11 @@
             updateCategoryDropdowns();
             updateDashboard();
             
-            if (!isPreviewMode) {
-                try {
-                    await setDoc(doc(db, "settings", "budgets"), { limits: budgets });
-                    showToast("Category deleted.");
-                } catch(error) {
-                    showToast("Failed to delete: " + error.message);
-                }
-            } else {
+            try {
+                await setDoc(doc(db, "settings", "budgets"), { limits: budgets });
                 showToast("Category deleted.");
+            } catch(error) {
+                showToast("Failed to delete: " + error.message);
             }
         };
 
@@ -494,15 +465,11 @@
             const container = document.getElementById('budgetInputsContainer');
             container.scrollTop = container.scrollHeight;
             
-            if (!isPreviewMode) {
-                try {
-                    await setDoc(doc(db, "settings", "budgets"), { limits: budgets });
-                    showToast("Category added.");
-                } catch(error) {
-                    showToast("Failed to add: " + error.message);
-                }
-            } else {
+            try {
+                await setDoc(doc(db, "settings", "budgets"), { limits: budgets });
                 showToast("Category added.");
+            } catch(error) {
+                showToast("Failed to add: " + error.message);
             }
         });
 
@@ -520,15 +487,11 @@
             updateCategoryDropdowns();
             updateDashboard();
             
-            if (!isPreviewMode) {
-                try {
-                    await setDoc(doc(db, "settings", "budgets"), { limits: newBudgets });
-                    showToast("Limits saved successfully!");
-                } catch(error) {
-                    showToast("Failed to save budgets: " + error.message);
-                }
-            } else {
-                showToast("Limits saved.");
+            try {
+                await setDoc(doc(db, "settings", "budgets"), { limits: newBudgets });
+                showToast("Limits saved successfully!");
+            } catch(error) {
+                showToast("Failed to save budgets: " + error.message);
             }
             toggleModal('editBudgetsModal');
         };
@@ -576,7 +539,7 @@
             const accountSource = document.getElementById('accountSource').value;
             const date = new Date().toISOString();
             const groupId = Date.now().toString(); // Ties split items together
-            const userId = isPreviewMode ? 'mock-uid' : auth.currentUser.uid;
+            const userId = auth.currentUser.uid;
 
             const lineItems = document.querySelectorAll('.line-item');
             
@@ -590,16 +553,10 @@
                     };
                 });
 
-                if (isPreviewMode) {
-                    expenses = [...newEntries.map(e => ({id: Math.random().toString(), ...e})), ...expenses];
-                    updateDashboard();
-                    renderHistory();
-                    showToast("Test expense logged.");
-                } else {
-                    const promises = newEntries.map(entry => addDoc(collection(db, "expenses"), entry));
-                    await Promise.all(promises);
-                    showToast("Expense logged successfully!");
-                }
+                const promises = newEntries.map(entry => addDoc(collection(db, "expenses"), entry));
+                await Promise.all(promises);
+                showToast("Expense logged successfully!");
+                
                 toggleModal('expenseModal');
             } catch (error) {
                 showToast("Error saving transaction.");
@@ -702,13 +659,6 @@
         // EDIT & DELETE TRANSACTIONS LOGIC
         // ----------------------------------------------------
         window.deleteExpense = async (id) => {
-            if (isPreviewMode) {
-                expenses = expenses.filter(e => e.id !== id);
-                updateDashboard();
-                renderHistory(document.getElementById('searchInput').value);
-                showToast("Transaction deleted.");
-                return;
-            }
             try {
                 await deleteDoc(doc(db, "expenses", id));
                 showToast("Transaction deleted.");
@@ -746,16 +696,8 @@
             };
 
             try {
-                if (isPreviewMode) {
-                    const index = expenses.findIndex(e => e.id === id);
-                    if(index > -1) expenses[index] = { ...expenses[index], ...updatedData };
-                    updateDashboard();
-                    renderHistory(document.getElementById('searchInput').value);
-                    showToast("Transaction updated.");
-                } else {
-                    await updateDoc(doc(db, "expenses", id), updatedData);
-                    showToast("Transaction updated successfully!");
-                }
+                await updateDoc(doc(db, "expenses", id), updatedData);
+                showToast("Transaction updated successfully!");
                 toggleModal('editExpenseModal');
             } catch (error) {
                 showToast("Error updating transaction.");

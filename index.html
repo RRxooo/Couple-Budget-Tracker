@@ -2,27 +2,31 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <title>Shared Ledger</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; color-scheme: dark; }
         .glass-panel {
-            background: rgba(24, 24, 27, 0.7);
-            backdrop-filter: blur(12px);
+            background: rgba(24, 24, 27, 0.75);
+            backdrop-filter: blur(16px);
             border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Fix for calendar icon rendering in dark mode on WebKit */
+        ::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.6; cursor: pointer; }
+        ::-webkit-calendar-picker-indicator:hover { opacity: 1; }
     </style>
 </head>
 <body class="bg-zinc-950 text-zinc-200 antialiased min-h-screen selection:bg-amber-500/30">
 
     <!-- Login Screen -->
     <div id="loginScreen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950 px-4 transition-opacity duration-500">
-        <div class="text-center space-y-6 max-w-sm w-full glass-panel p-8 rounded-3xl border border-zinc-800 shadow-2xl">
+        <div class="text-center space-y-6 max-w-sm w-full glass-panel p-8 rounded-3xl border border-zinc-800 shadow-2xl flex flex-col items-center">
             <h1 class="text-3xl font-light tracking-wide text-white">Our <span class="text-amber-500 font-medium">Ledger</span></h1>
             <p class="text-zinc-500 text-sm">Secure access required to view household budget.</p>
             
@@ -35,36 +39,57 @@
 
     <!-- Main App -->
     <div id="mainApp" class="hidden pb-24">
-        <main class="max-w-md mx-auto p-4 space-y-6 mt-4">
-            <!-- Header & Navigation -->
+        <main class="max-w-md mx-auto p-4 space-y-5 mt-2">
+            <!-- Header -->
             <header class="space-y-4">
                 <div class="flex justify-between items-center">
                     <h1 class="text-2xl font-light tracking-wide text-white">Our <span class="text-amber-500 font-medium">Ledger</span></h1>
                     <div class="flex gap-2">
-                        <button onclick="exportToCSV()" class="text-xs font-medium text-zinc-400 hover:text-amber-500 transition-colors border border-zinc-800 px-3 py-1.5 rounded-full">CSV</button>
-                        <button id="logoutBtn" class="text-xs font-medium text-zinc-400 hover:text-red-400 transition-colors border border-zinc-800 px-3 py-1.5 rounded-full">Exit</button>
+                        <button onclick="exportToCSV()" class="text-xs font-medium text-zinc-400 hover:text-amber-500 transition-colors bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full shadow-sm">CSV</button>
+                        <button id="logoutBtn" class="text-xs font-medium text-zinc-400 hover:text-red-400 transition-colors bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full shadow-sm">Exit</button>
                     </div>
                 </div>
-                <nav class="flex gap-2 bg-zinc-900/50 p-1 rounded-xl border border-zinc-800">
-                    <button id="tabDashboard" class="flex-1 text-sm font-medium py-2 rounded-lg bg-zinc-800 text-white shadow transition-all">Dashboard</button>
-                    <button id="tabHistory" class="flex-1 text-sm font-medium py-2 rounded-lg text-zinc-400 hover:text-white transition-all">History</button>
+
+                <!-- Global Month Picker -->
+                <div class="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 shadow-lg">
+                    <button id="prevMonthBtn" class="text-zinc-400 hover:text-amber-500 p-1 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    <span id="currentMonthDisplay" class="text-sm font-medium text-white tracking-wide uppercase">Month 2026</span>
+                    <button id="nextMonthBtn" class="text-zinc-400 hover:text-amber-500 p-1 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="flex gap-1 bg-zinc-900/80 p-1.5 rounded-2xl border border-zinc-800 shadow-inner">
+                    <button id="tabDashboard" class="flex-1 text-sm font-medium py-2 rounded-xl bg-zinc-800 text-white shadow transition-all">Dashboard</button>
+                    <button id="tabHistory" class="flex-1 text-sm font-medium py-2 rounded-xl text-zinc-400 hover:text-white transition-all">History</button>
+                    <button id="tabSettle" class="flex-1 text-sm font-medium py-2 rounded-xl text-zinc-400 hover:text-white transition-all">Claims</button>
                 </nav>
             </header>
 
             <!-- VIEW: DASHBOARD (Envelopes) -->
             <div id="viewDashboard" class="space-y-6 block">
-                <!-- Global Summary -->
-                <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl">
-                    <div class="flex justify-between text-sm mb-2">
-                        <span class="text-zinc-400">Total Monthly Budget</span>
-                        <span class="font-medium text-amber-500" id="globalRemaining">$0 Remaining</span>
+                <!-- Combined Header Card (Summary + Chart) -->
+                <section class="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 shadow-2xl relative overflow-hidden flex items-center justify-between gap-4">
+                    <div class="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none"></div>
+                    <div class="flex-1 space-y-3 relative z-10">
+                        <div>
+                            <p class="text-[10px] text-zinc-500 uppercase tracking-widest font-medium mb-1">Monthly Budget</p>
+                            <div class="text-3xl font-light text-white font-mono tracking-tight" id="globalRemaining">$0</div>
+                            <p class="text-xs text-zinc-400 mt-0.5">Remaining</p>
+                        </div>
+                        <div class="w-full bg-zinc-950 rounded-full h-2.5 overflow-hidden border border-zinc-800/50 shadow-inner">
+                            <div id="globalFill" class="h-full rounded-full transition-all duration-1000 w-0 bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_12px_rgba(245,158,11,0.6)]"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-zinc-500 font-mono font-medium">
+                            <span id="globalSpentText">$0 spent</span>
+                            <span id="globalTotalText">$0 total</span>
+                        </div>
                     </div>
-                    <div class="w-full bg-zinc-950 rounded-full h-2 mb-2 overflow-hidden border border-zinc-800/50">
-                        <div id="globalFill" class="bg-amber-500 h-full rounded-full transition-all duration-700 w-0"></div>
-                    </div>
-                    <div class="flex justify-between text-xs text-zinc-500 font-mono mt-3">
-                        <span id="globalSpentText">$0 spent</span>
-                        <span id="globalTotalText">$0 total</span>
+                    <div class="w-28 h-28 shrink-0 relative z-10 flex items-center justify-center">
+                        <canvas id="expenseChart" class="drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]"></canvas>
                     </div>
                 </section>
 
@@ -72,29 +97,56 @@
                 <section>
                     <div class="flex justify-between items-center mb-4 ml-1">
                         <h2 class="text-sm font-medium text-zinc-500 uppercase tracking-widest">Envelopes</h2>
-                        <button onclick="toggleModal('editBudgetsModal')" class="text-xs text-amber-500 hover:text-amber-400 font-medium">Edit Limits</button>
+                        <button onclick="toggleModal('editBudgetsModal')" class="text-xs text-amber-500 hover:text-amber-400 font-medium bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20 transition-colors">Edit Limits</button>
                     </div>
                     <div id="envelopesList" class="space-y-4">
                         <p class="text-sm text-zinc-600 text-center py-4 italic">Loading envelopes...</p>
                     </div>
                 </section>
-                
-                <!-- Category Chart -->
-                <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-xl">
-                    <canvas id="expenseChart" height="200"></canvas>
-                </section>
             </div>
 
             <!-- VIEW: HISTORY (Search & Analytics) -->
             <div id="viewHistory" class="space-y-6 hidden">
-                <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
-                    <input type="text" id="searchInput" class="w-full bg-zinc-950 border border-zinc-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all" placeholder="Search description, category, or source...">
+                <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl relative">
+                    <svg class="absolute left-7 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <input type="text" id="searchInput" class="w-full bg-zinc-950 border border-zinc-800 text-white rounded-xl pl-10 pr-4 py-3 text-base focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all shadow-inner" placeholder="Search description, category, or source...">
                 </section>
 
                 <section>
-                    <h2 class="text-sm font-medium text-zinc-500 uppercase tracking-widest mb-4 ml-1">All Transactions</h2>
+                    <h2 class="text-sm font-medium text-zinc-500 uppercase tracking-widest mb-4 ml-1">Transactions in Month</h2>
                     <div id="historyList" class="space-y-3 max-h-[60vh] overflow-y-auto hide-scrollbar pb-4">
                         <!-- Transactions injected here -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- VIEW: SETTLE UP (Reimbursements/Claims) -->
+            <div id="viewSettle" class="space-y-6 hidden">
+                <section class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 shadow-2xl text-center relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-b from-amber-500/5 to-transparent pointer-events-none"></div>
+                    <h2 class="text-[10px] font-medium text-zinc-500 uppercase tracking-widest mb-2 relative z-10">Total Monthly Expenses</h2>
+                    <div id="settleTotal" class="text-4xl font-light text-amber-500 mb-2 font-mono relative z-10">$0.00</div>
+                    <p class="text-xs text-zinc-400 relative z-10">Total amount to be paid out from the common fund.</p>
+                </section>
+
+                <section class="grid grid-cols-2 gap-4">
+                    <!-- Roger -->
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
+                        <h3 class="text-amber-500 font-medium mb-1">Roger to Claim</h3>
+                        <div class="text-2xl text-white mb-3 font-mono font-light" id="settleRogerTotal">$0.00</div>
+                        <h4 class="text-[10px] uppercase text-zinc-500 font-medium tracking-wider mb-2 border-b border-zinc-800 pb-2">Card Breakdown</h4>
+                        <div id="settleRogerBreakdown" class="space-y-1 text-xs text-zinc-300 font-mono">
+                            <!-- Card items injected here -->
+                        </div>
+                    </div>
+                    <!-- Noelle -->
+                    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-xl">
+                        <h3 class="text-amber-500 font-medium mb-1">Noelle to Claim</h3>
+                        <div class="text-2xl text-white mb-3 font-mono font-light" id="settleNoelleTotal">$0.00</div>
+                        <h4 class="text-[10px] uppercase text-zinc-500 font-medium tracking-wider mb-2 border-b border-zinc-800 pb-2">Card Breakdown</h4>
+                        <div id="settleNoelleBreakdown" class="space-y-1 text-xs text-zinc-300 font-mono">
+                            <!-- Card items injected here -->
+                        </div>
                     </div>
                 </section>
             </div>
@@ -102,34 +154,38 @@
 
         <!-- Floating Action Button -->
         <div class="fixed bottom-6 left-0 w-full flex justify-center pointer-events-none z-30">
-            <button onclick="toggleModal('expenseModal')" class="pointer-events-auto bg-amber-500 text-zinc-950 rounded-full w-14 h-14 shadow-[0_0_20px_rgba(245,158,11,0.3)] flex items-center justify-center text-3xl font-light hover:bg-amber-400 transition-transform active:scale-95">
+            <button onclick="toggleModal('expenseModal')" class="pointer-events-auto bg-gradient-to-tr from-amber-500 to-orange-400 text-zinc-950 rounded-full w-14 h-14 shadow-[0_4px_20px_rgba(245,158,11,0.4)] flex items-center justify-center text-3xl font-light hover:brightness-110 transition-all active:scale-95">
                 +
             </button>
         </div>
 
         <!-- Edit Budgets Modal -->
         <div id="editBudgetsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity flex flex-col justify-end">
-            <div class="glass-panel w-full rounded-t-3xl p-6 shadow-2xl transform translate-y-full transition-transform duration-300 max-h-[90vh] overflow-y-auto hide-scrollbar" id="editBudgetsModalContent">
-                <div class="flex justify-between items-center mb-6">
+            <div class="glass-panel w-full rounded-t-3xl p-6 shadow-2xl transform translate-y-full transition-transform duration-300 max-h-[90vh] flex flex-col" id="editBudgetsModalContent">
+                <div class="flex justify-between items-center mb-6 shrink-0">
                     <h3 class="text-xl text-white font-medium">Manage Envelopes</h3>
-                    <button type="button" onclick="saveBudgetsAndClose()" class="text-zinc-500 hover:text-white text-2xl">&times;</button>
+                    <button type="button" onclick="toggleModal('editBudgetsModal')" class="text-zinc-500 hover:text-white text-3xl leading-none">&times;</button>
                 </div>
-                <form id="editBudgetsForm" class="space-y-4">
-                    <div class="space-y-3 max-h-[40vh] overflow-y-auto hide-scrollbar" id="budgetInputsContainer">
-                        <!-- Inputs generated dynamically -->
+                
+                <div class="flex-1 overflow-y-auto hide-scrollbar space-y-3 pb-4" id="budgetInputsContainer">
+                    <!-- Inputs injected here -->
+                </div>
+                
+                <div class="shrink-0 space-y-4 pt-4 border-t border-zinc-800 mt-2">
+                    <div class="flex gap-2">
+                        <input type="text" id="newCategoryName" placeholder="New category..." class="flex-1 bg-zinc-950 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 text-base shadow-inner transition-all">
+                        <div class="relative w-28 shrink-0">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">$</span>
+                            <input type="number" id="newCategoryLimit" placeholder="0" class="w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl pl-7 pr-3 py-3 focus:outline-none focus:border-amber-500 font-mono text-base shadow-inner transition-all text-right">
+                        </div>
+                        <button type="button" id="addNewCategoryBtn" class="bg-zinc-800 text-amber-500 px-4 py-3 rounded-xl font-medium border border-zinc-700 hover:bg-zinc-700 transition-colors shadow-sm">+</button>
                     </div>
-                    
-                    <!-- Add new category row -->
-                    <div class="flex items-center gap-2 mt-2 pt-4 border-t border-zinc-800">
-                        <input type="text" id="newCategoryName" placeholder="New envelope name..." class="flex-1 bg-zinc-950 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500">
-                        <input type="number" id="newCategoryLimit" placeholder="$ Limit" class="w-24 bg-zinc-950 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500">
-                        <button type="button" id="addNewCategoryBtn" class="bg-zinc-800 text-amber-500 hover:bg-zinc-700 hover:text-amber-400 font-medium px-4 py-2.5 rounded-lg text-sm transition-all border border-zinc-700">+</button>
-                    </div>
-
-                    <button type="submit" class="w-full bg-amber-500 text-zinc-950 font-semibold rounded-xl py-3.5 mt-4 hover:bg-amber-400 active:scale-95 transition-all shadow-lg shadow-amber-500/20">
-                        Save Limits
-                    </button>
-                </form>
+                    <form id="editBudgetsForm">
+                        <button type="submit" class="w-full bg-gradient-to-r from-amber-400 to-orange-500 text-zinc-950 font-semibold rounded-xl py-3.5 hover:brightness-110 active:scale-95 transition-all shadow-[0_4px_15px_rgba(245,158,11,0.3)]">
+                            Save Limits
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
 
@@ -138,53 +194,67 @@
             <div class="glass-panel w-full rounded-t-3xl p-6 shadow-2xl transform translate-y-full transition-transform duration-300 max-h-[90vh] overflow-y-auto hide-scrollbar" id="expenseModalContent">
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-xl text-white font-medium">Log Transaction</h3>
-                    <button onclick="toggleModal('expenseModal')" class="text-zinc-500 hover:text-white text-2xl">&times;</button>
+                    <button type="button" onclick="toggleModal('expenseModal')" class="text-zinc-500 hover:text-white text-3xl leading-none">&times;</button>
                 </div>
                 <form id="expenseForm" class="space-y-6">
                     <!-- Receipt Metadata -->
-                    <div class="grid grid-cols-2 gap-3 p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800">
+                    <div class="space-y-5 p-5 bg-zinc-900/50 rounded-3xl border border-zinc-800 shadow-inner">
                         <div>
-                            <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Paid By</label>
-                            <select id="paidBy" class="w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 appearance-none text-sm">
-                                <option value="Roger">Roger</option>
-                                <option value="Noelle">Noelle</option>
-                            </select>
+                            <label class="block text-[10px] text-zinc-500 uppercase tracking-widest font-medium mb-2 ml-1">Paid By</label>
+                            <div class="flex gap-3">
+                                <label class="flex-1 cursor-pointer block" onclick="">
+                                    <input type="radio" name="paidBy" value="Roger" class="peer sr-only" checked>
+                                    <div class="text-center py-3 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-sm font-medium shadow-sm">Roger</div>
+                                </label>
+                                <label class="flex-1 cursor-pointer block" onclick="">
+                                    <input type="radio" name="paidBy" value="Noelle" class="peer sr-only">
+                                    <div class="text-center py-3 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-sm font-medium shadow-sm">Noelle</div>
+                                </label>
+                            </div>
                         </div>
+                        
                         <div>
-                            <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Source</label>
-                            <select id="accountSource" class="w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 appearance-none text-sm">
-                                <option value="HSBC">HSBC</option>
-                                <option value="UOB">UOB</option>
-                                <option value="DBS">DBS</option>
-                                <option value="OCBC">OCBC</option>
-                                <option value="Personal Funds">Personal Funds</option>
-                            </select>
+                            <label class="block text-[10px] text-zinc-500 uppercase tracking-widest font-medium mb-2 ml-1">Source</label>
+                            <div class="flex flex-wrap gap-2">
+                                <label class="cursor-pointer block" onclick=""><input type="radio" name="accountSource" value="HSBC" class="peer sr-only" checked><div class="px-4 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-xs font-medium shadow-sm">HSBC</div></label>
+                                <label class="cursor-pointer block" onclick=""><input type="radio" name="accountSource" value="UOB" class="peer sr-only"><div class="px-4 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-xs font-medium shadow-sm">UOB</div></label>
+                                <label class="cursor-pointer block" onclick=""><input type="radio" name="accountSource" value="DBS" class="peer sr-only"><div class="px-4 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-xs font-medium shadow-sm">DBS</div></label>
+                                <label class="cursor-pointer block" onclick=""><input type="radio" name="accountSource" value="OCBC" class="peer sr-only"><div class="px-4 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-xs font-medium shadow-sm">OCBC</div></label>
+                                <label class="cursor-pointer block" onclick=""><input type="radio" name="accountSource" value="Personal Funds" class="peer sr-only"><div class="px-4 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-xs font-medium shadow-sm">Personal Funds</div></label>
+                            </div>
+                        </div>
+                        
+                        <!-- Date Picker -->
+                        <div class="border-t border-zinc-800/50 pt-5 mt-2">
+                            <label class="block text-[10px] text-zinc-500 uppercase tracking-widest font-medium mb-2 ml-1">Transaction Date</label>
+                            <!-- appearance-none and m-0 forcefully fix the Safari breakout bug -->
+                            <input type="date" id="expenseDate" required class="block w-full box-border min-w-0 bg-zinc-950 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 text-base appearance-none m-0 shadow-inner transition-all">
                         </div>
                     </div>
 
                     <!-- Line Items Container -->
                     <div id="lineItemsContainer" class="space-y-4">
                         <!-- Initial Line Item -->
-                        <div class="line-item bg-zinc-900 p-4 rounded-2xl border border-zinc-800 relative shadow-inner">
-                            <div class="space-y-3">
+                        <div class="line-item bg-zinc-900 p-5 rounded-3xl border border-zinc-800 relative shadow-lg">
+                            <div class="space-y-4">
                                 <div>
-                                    <input type="number" required step="0.01" class="item-amount w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-4 py-2.5 focus:outline-none focus:border-amber-500 font-mono text-lg transition-all" placeholder="$0.00">
+                                    <input type="number" required step="0.01" class="item-amount w-full bg-zinc-950 border border-zinc-700 text-white rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 font-mono text-2xl transition-all shadow-inner" placeholder="$0.00">
                                 </div>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <input type="text" class="item-desc w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 text-sm transition-all" placeholder="Description (Optional)...">
-                                    <select required class="item-category w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 appearance-none text-sm">
-                                        <!-- Options populated dynamically by JS -->
-                                    </select>
+                                <div class="space-y-3">
+                                    <input type="text" class="item-desc w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-5 py-3 focus:outline-none focus:border-amber-500 text-base transition-all shadow-inner" placeholder="Description (Optional)...">
+                                    <div class="category-scroll flex overflow-x-auto hide-scrollbar gap-2 pb-1" data-group-name="cat_initial">
+                                        <!-- Chips populated dynamically by JS -->
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <button type="button" id="addItemBtn" class="text-sm text-amber-500 hover:text-amber-400 font-medium flex items-center gap-1 ml-1">
+                    <button type="button" id="addItemBtn" class="text-sm text-amber-500 hover:text-amber-400 font-medium flex items-center gap-1 ml-1 bg-amber-500/10 px-4 py-2 rounded-lg transition-colors">
                         + Add another item to this receipt
                     </button>
 
-                    <button type="submit" class="w-full bg-amber-500 text-zinc-950 font-semibold rounded-xl py-3.5 mt-4 hover:bg-amber-400 active:scale-95 transition-all shadow-lg shadow-amber-500/20" id="submitBtn">
+                    <button type="submit" class="w-full bg-gradient-to-r from-amber-400 to-orange-500 text-zinc-950 font-semibold rounded-xl py-4 mt-2 hover:brightness-110 active:scale-95 transition-all shadow-[0_4px_15px_rgba(245,158,11,0.3)] text-lg" id="submitBtn">
                         Save to Ledger
                     </button>
                 </form>
@@ -196,46 +266,71 @@
             <div class="glass-panel w-full rounded-t-3xl p-6 shadow-2xl transform translate-y-full transition-transform duration-300 max-h-[90vh] overflow-y-auto hide-scrollbar" id="editExpenseModalContent">
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-xl text-white font-medium">Edit Transaction</h3>
-                    <button onclick="toggleModal('editExpenseModal')" class="text-zinc-500 hover:text-white text-2xl">&times;</button>
+                    <button type="button" onclick="toggleModal('editExpenseModal')" class="text-zinc-500 hover:text-white text-3xl leading-none">&times;</button>
                 </div>
                 <form id="editExpenseForm" class="space-y-6">
                     <input type="hidden" id="editExpenseId">
-                    <div class="grid grid-cols-2 gap-3 p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800">
+                    <div class="space-y-5 p-5 bg-zinc-900/50 rounded-3xl border border-zinc-800 shadow-inner">
                         <div>
-                            <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Paid By</label>
-                            <select id="editPaidBy" class="w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 appearance-none text-sm">
-                                <option value="Roger">Roger</option>
-                                <option value="Noelle">Noelle</option>
-                            </select>
+                            <label class="block text-[10px] text-zinc-500 uppercase tracking-widest font-medium mb-2 ml-1">Paid By</label>
+                            <div class="flex gap-3">
+                                <label class="flex-1 cursor-pointer block" onclick="">
+                                    <input type="radio" name="editPaidBy" value="Roger" class="peer sr-only">
+                                    <div class="text-center py-3 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-sm font-medium shadow-sm">Roger</div>
+                                </label>
+                                <label class="flex-1 cursor-pointer block" onclick="">
+                                    <input type="radio" name="editPaidBy" value="Noelle" class="peer sr-only">
+                                    <div class="text-center py-3 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-sm font-medium shadow-sm">Noelle</div>
+                                </label>
+                            </div>
                         </div>
                         <div>
-                            <label class="block text-xs text-zinc-500 uppercase tracking-wider mb-1 ml-1">Source</label>
-                            <select id="editAccountSource" class="w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 appearance-none text-sm">
-                                <option value="HSBC">HSBC</option>
-                                <option value="UOB">UOB</option>
-                                <option value="DBS">DBS</option>
-                                <option value="OCBC">OCBC</option>
-                                <option value="Personal Funds">Personal Funds</option>
-                            </select>
+                            <label class="block text-[10px] text-zinc-500 uppercase tracking-widest font-medium mb-2 ml-1">Source</label>
+                            <div class="flex flex-wrap gap-2">
+                                <label class="cursor-pointer block" onclick=""><input type="radio" name="editAccountSource" value="HSBC" class="peer sr-only"><div class="px-4 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-xs font-medium shadow-sm">HSBC</div></label>
+                                <label class="cursor-pointer block" onclick=""><input type="radio" name="editAccountSource" value="UOB" class="peer sr-only"><div class="px-4 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-xs font-medium shadow-sm">UOB</div></label>
+                                <label class="cursor-pointer block" onclick=""><input type="radio" name="editAccountSource" value="DBS" class="peer sr-only"><div class="px-4 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-xs font-medium shadow-sm">DBS</div></label>
+                                <label class="cursor-pointer block" onclick=""><input type="radio" name="editAccountSource" value="OCBC" class="peer sr-only"><div class="px-4 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-xs font-medium shadow-sm">OCBC</div></label>
+                                <label class="cursor-pointer block" onclick=""><input type="radio" name="editAccountSource" value="Personal Funds" class="peer sr-only"><div class="px-4 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-xs font-medium shadow-sm">Personal Funds</div></label>
+                            </div>
+                        </div>
+                        <div class="border-t border-zinc-800/50 pt-5 mt-2">
+                            <label class="block text-[10px] text-zinc-500 uppercase tracking-widest font-medium mb-2 ml-1">Transaction Date</label>
+                            <!-- appearance-none and m-0 forcefully fix the Safari breakout bug -->
+                            <input type="date" id="editExpenseDate" required class="block w-full box-border min-w-0 bg-zinc-950 border border-zinc-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-amber-500 text-base appearance-none m-0 shadow-inner transition-all">
                         </div>
                     </div>
-                    <div class="bg-zinc-900 p-4 rounded-2xl border border-zinc-800 shadow-inner space-y-3">
+                    <div class="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 shadow-lg space-y-4">
                         <div>
-                            <input type="number" id="editAmount" required step="0.01" class="w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-4 py-2.5 focus:outline-none focus:border-amber-500 font-mono text-lg transition-all" placeholder="$0.00">
+                            <input type="number" id="editAmount" required step="0.01" class="w-full bg-zinc-950 border border-zinc-700 text-white rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 font-mono text-2xl transition-all shadow-inner" placeholder="$0.00">
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <input type="text" id="editDesc" class="w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 text-sm transition-all" placeholder="Description (Optional)...">
-                            <select id="editCategory" required class="item-category w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 appearance-none text-sm">
-                                <!-- Options populated dynamically by JS -->
-                            </select>
+                        <div class="space-y-3">
+                            <input type="text" id="editDesc" class="w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-5 py-3 focus:outline-none focus:border-amber-500 text-base transition-all shadow-inner" placeholder="Description (Optional)...">
+                            <div class="category-scroll flex overflow-x-auto hide-scrollbar gap-2 pb-1" data-group-name="editCategory">
+                                <!-- Chips populated dynamically by JS -->
+                            </div>
                         </div>
                     </div>
-                    <button type="submit" class="w-full bg-amber-500 text-zinc-950 font-semibold rounded-xl py-3.5 mt-4 hover:bg-amber-400 active:scale-95 transition-all shadow-lg shadow-amber-500/20" id="editSubmitBtn">
+                    <button type="submit" class="w-full bg-gradient-to-r from-amber-400 to-orange-500 text-zinc-950 font-semibold rounded-xl py-4 mt-2 hover:brightness-110 active:scale-95 transition-all shadow-[0_4px_15px_rgba(245,158,11,0.3)] text-lg" id="editSubmitBtn">
                         Save Changes
                     </button>
                 </form>
             </div>
         </div>
+
+        <!-- Card Breakdown Modal -->
+        <div id="cardBreakdownModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity flex items-center justify-center p-4">
+            <div class="glass-panel w-full max-w-sm rounded-3xl p-6 shadow-2xl transform scale-95 transition-all duration-300 max-h-[75vh] flex flex-col" id="cardBreakdownModalContent">
+                <div class="flex justify-between items-center mb-4 shrink-0 border-b border-zinc-800 pb-4">
+                    <h3 class="text-lg text-amber-500 font-medium tracking-wide" id="cardBreakdownTitle">Card Details</h3>
+                    <button type="button" onclick="toggleModal('cardBreakdownModal')" class="text-zinc-500 hover:text-white text-3xl leading-none font-light">&times;</button>
+                </div>
+                <div class="flex-1 overflow-y-auto hide-scrollbar space-y-3 pb-2" id="cardBreakdownList">
+                    <!-- Items injected here -->
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Application Logic -->
@@ -244,7 +339,6 @@
         import { getFirestore, collection, doc, setDoc, addDoc, onSnapshot, query, orderBy, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-        // Your specific Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBALRC-6CYdz76UW7dcq1wsc84VUhqbv54",
             authDomain: "shared-ledger-b8aaf.firebaseapp.com",
@@ -264,11 +358,45 @@
         let budgets = {};
         let unsubscribeExpenses = null;
         let unsubscribeBudgets = null;
+        
+        // ----------------------------------------------------
+        // TIME MACHINE (Month Picker Logic)
+        // ----------------------------------------------------
+        let selectedDate = new Date();
+        
+        function refreshViews() {
+            updateMonthDisplay();
+            updateDashboard();
+            updateSettlement();
+            renderHistory(document.getElementById('searchInput').value);
+        }
 
-        // Custom Toast Notification (Replaces blocked browser alerts)
+        function updateMonthDisplay() {
+            const options = { month: 'long', year: 'numeric' };
+            document.getElementById('currentMonthDisplay').innerText = selectedDate.toLocaleDateString('en-US', options);
+        }
+
+        document.getElementById('prevMonthBtn').addEventListener('click', () => {
+            selectedDate.setMonth(selectedDate.getMonth() - 1);
+            refreshViews();
+        });
+
+        document.getElementById('nextMonthBtn').addEventListener('click', () => {
+            selectedDate.setMonth(selectedDate.getMonth() + 1);
+            refreshViews();
+        });
+
+        document.addEventListener("DOMContentLoaded", () => {
+            updateMonthDisplay();
+        });
+
+        // ----------------------------------------------------
+        // AUTH & CORE LOGIC
+        // ----------------------------------------------------
+
         function showToast(message) {
             const toast = document.createElement('div');
-            toast.className = 'fixed top-10 left-1/2 -translate-x-1/2 bg-zinc-800 text-white px-6 py-3 rounded-full shadow-2xl border border-zinc-700 z-[100] text-sm font-medium transition-all duration-300 opacity-0 -translate-y-4 pointer-events-none';
+            toast.className = 'fixed top-10 left-1/2 -translate-x-1/2 bg-zinc-800 text-white px-6 py-3 rounded-full shadow-2xl border border-zinc-700 z-[100] text-sm font-medium transition-all duration-300 opacity-0 -translate-y-4 pointer-events-none text-center min-w-[200px]';
             toast.innerText = message;
             document.body.appendChild(toast);
             setTimeout(() => toast.classList.remove('opacity-0', '-translate-y-4'), 10);
@@ -278,44 +406,47 @@
             }, 3000);
         }
 
-        // View Toggling (Dashboard / History)
-        const tabDash = document.getElementById('tabDashboard');
-        const tabHist = document.getElementById('tabHistory');
-        const viewDash = document.getElementById('viewDashboard');
-        const viewHist = document.getElementById('viewHistory');
-
-        tabDash.addEventListener('click', () => {
-            tabDash.classList.add('bg-zinc-800', 'text-white', 'shadow');
-            tabDash.classList.remove('text-zinc-400');
-            tabHist.classList.remove('bg-zinc-800', 'text-white', 'shadow');
-            tabHist.classList.add('text-zinc-400');
-            viewDash.classList.remove('hidden');
-            viewHist.classList.add('hidden');
+        // View Toggling (Dashboard / History / Settle)
+        const tabs = ['Dashboard', 'History', 'Settle'];
+        tabs.forEach(tab => {
+            document.getElementById(`tab${tab}`).addEventListener('click', () => {
+                tabs.forEach(t => {
+                    const btn = document.getElementById(`tab${t}`);
+                    const view = document.getElementById(`view${t}`);
+                    if (t === tab) {
+                        btn.classList.add('bg-zinc-800', 'text-white', 'shadow');
+                        btn.classList.remove('text-zinc-400');
+                        view.classList.remove('hidden');
+                    } else {
+                        btn.classList.remove('bg-zinc-800', 'text-white', 'shadow');
+                        btn.classList.add('text-zinc-400');
+                        view.classList.add('hidden');
+                    }
+                });
+            });
         });
 
-        tabHist.addEventListener('click', () => {
-            tabHist.classList.add('bg-zinc-800', 'text-white', 'shadow');
-            tabHist.classList.remove('text-zinc-400');
-            tabDash.classList.remove('bg-zinc-800', 'text-white', 'shadow');
-            tabDash.classList.add('text-zinc-400');
-            viewHist.classList.remove('hidden');
-            viewDash.classList.add('hidden');
-        });
-
-        // Modal Logic
         window.toggleModal = (modalId) => {
             const modal = document.getElementById(modalId);
             const content = document.getElementById(modalId + 'Content');
             if (modal.classList.contains('hidden')) {
-                // Populate Edit Budgets Modal before showing
-                if(modalId === 'editBudgetsModal') {
-                    populateEditBudgetsForm();
+                if(modalId === 'editBudgetsModal') populateEditBudgetsForm();
+                
+                if(modalId === 'expenseModal') {
+                    document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
                 }
+                
                 modal.classList.remove('hidden');
-                setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('translate-y-full'); }, 10);
+                setTimeout(() => { 
+                    modal.classList.remove('opacity-0'); 
+                    if (content.classList.contains('translate-y-full')) content.classList.remove('translate-y-full');
+                    if (content.classList.contains('scale-95')) { content.classList.remove('scale-95'); content.classList.add('scale-100'); }
+                }, 10);
             } else {
                 modal.classList.add('opacity-0');
-                content.classList.add('translate-y-full');
+                if (content.classList.contains('scale-100')) { content.classList.remove('scale-100'); content.classList.add('scale-95'); }
+                else { content.classList.add('translate-y-full'); }
+                
                 setTimeout(() => { 
                     modal.classList.add('hidden'); 
                     if(modalId === 'expenseModal') resetForm(); 
@@ -323,12 +454,10 @@
             }
         };
 
-        // Setup Application Data via Firebase
         function initAppData(uid) {
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden');
 
-            // Fetch Envelopes (Budgets)
             const budgetRef = doc(db, "settings", "budgets");
             unsubscribeBudgets = onSnapshot(budgetRef, (docSnap) => {
                 if (docSnap.exists() && docSnap.data().limits) {
@@ -339,29 +468,20 @@
                 }
                 categories = Object.keys(budgets);
                 updateCategoryDropdowns();
-                updateDashboard();
-            }, (error) => {
-                showToast("Database Locked: Your UID is not authorized yet!");
-                console.error("Firestore Error:", error);
-            });
+                refreshViews();
+            }, (error) => { showToast("Database Locked: Your UID is not authorized yet!"); });
 
-            // Fetch Expenses
             const q = query(collection(db, "expenses"), orderBy("date", "desc"));
             unsubscribeExpenses = onSnapshot(q, (snapshot) => {
                 expenses = [];
                 snapshot.forEach((doc) => { expenses.push({ id: doc.id, ...doc.data() }); });
-                updateDashboard();
-                renderHistory();
-            }, (error) => {
-                console.error("Firestore Error:", error);
-            });
+                refreshViews();
+            }, (error) => { console.error("Firestore Error:", error); });
         }
 
-        // Auth
         onAuthStateChanged(auth, (user) => {
-            if (user) {
-                initAppData(user.uid);
-            } else {
+            if (user) initAppData(user.uid);
+            else {
                 document.getElementById('loginScreen').classList.remove('hidden');
                 document.getElementById('mainApp').classList.add('hidden');
                 if (unsubscribeExpenses) unsubscribeExpenses();
@@ -369,12 +489,8 @@
             }
         });
 
-        // Handle Redirect Results for Safari/Mobile
-        getRedirectResult(auth).catch((error) => {
-            showToast("Login Error: " + error.message);
-        });
+        getRedirectResult(auth).catch((error) => showToast("Login Error: " + error.message));
 
-        // Log in triggers
         document.getElementById('loginBtn').addEventListener('click', () => {
             signInWithPopup(auth, provider).catch((error) => {
                 if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
@@ -392,63 +508,55 @@
             document.getElementById('mainApp').classList.add('hidden');
         });
 
-        // ----------------------------------------------------
-        // DYNAMIC CATEGORY DROPDOWN UPDATER
-        // ----------------------------------------------------
+        // Generates the tap-friendly category chips
         function updateCategoryDropdowns() {
-            const selects = document.querySelectorAll('.item-category');
-            selects.forEach(select => {
-                const currentVal = select.value;
-                select.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
-                if (categories.includes(currentVal)) {
-                    select.value = currentVal;
-                } else if (categories.length > 0) {
-                    select.value = categories[0];
-                }
+            const containers = document.querySelectorAll('.category-scroll');
+            containers.forEach(container => {
+                const groupName = container.getAttribute('data-group-name');
+                const checkedRadio = container.querySelector('input[type="radio"]:checked');
+                const currentVal = checkedRadio ? checkedRadio.value : null;
+                
+                container.innerHTML = categories.map((c, i) => {
+                    const isChecked = (currentVal === c) || (!currentVal && i === 0);
+                    // Added block and onclick="" to force iOS Safari to register tap events on labels reliably
+                    return `<label class="shrink-0 cursor-pointer block" onclick="">
+                        <input type="radio" name="${groupName}" value="${c}" class="item-category-radio peer sr-only" ${isChecked ? 'checked' : ''}>
+                        <div class="px-4 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-xs font-medium whitespace-nowrap shadow-sm">${c}</div>
+                    </label>`;
+                }).join('');
             });
         }
 
-        // ----------------------------------------------------
-        // EDIT BUDGETS MODAL LOGIC
-        // ----------------------------------------------------
         function populateEditBudgetsForm() {
             const container = document.getElementById('budgetInputsContainer');
             container.innerHTML = categories.map(cat => `
-                <div class="flex items-center justify-between bg-zinc-900 border border-zinc-800 p-3 rounded-xl gap-3">
-                    <button type="button" class="text-zinc-500 hover:text-red-500 transition-colors shrink-0" onclick="deleteCategory('${cat.replace(/'/g, "\\'")}')">
+                <div class="flex items-center justify-between bg-zinc-900 border border-zinc-800 p-3 rounded-2xl gap-3 shadow-sm">
+                    <button type="button" class="text-zinc-500 hover:text-red-500 transition-colors shrink-0 p-2 bg-zinc-800/50 rounded-xl" onclick="deleteCategory('${cat.replace(/'/g, "\\'")}')">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                     </button>
                     <label class="text-sm font-medium text-white flex-1 truncate">${cat}</label>
                     <div class="relative w-28 shrink-0">
                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">$</span>
                         <input type="number" step="1" min="0" data-category="${cat}" value="${budgets[cat] || 0}" 
-                               class="budget-input w-full bg-zinc-950 border border-zinc-700 text-white rounded-lg pl-7 pr-3 py-2 focus:outline-none focus:border-amber-500 font-mono text-sm transition-all text-right">
+                               class="budget-input w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl pl-7 pr-3 py-2.5 focus:outline-none focus:border-amber-500 font-mono text-base transition-all text-right shadow-inner">
                     </div>
                 </div>
             `).join('');
         }
 
         window.deleteCategory = async (cat) => {
-            // Read current inputs so uncommitted typed limits aren't lost
             const inputs = document.querySelectorAll('.budget-input');
             let currentBudgets = {};
             inputs.forEach(input => {
                 const c = input.getAttribute('data-category');
                 if (c !== cat) currentBudgets[c] = parseFloat(input.value) || 0;
             });
-            
             budgets = currentBudgets;
             categories = Object.keys(budgets);
-            populateEditBudgetsForm();
-            updateCategoryDropdowns();
-            updateDashboard();
+            populateEditBudgetsForm(); updateCategoryDropdowns(); updateDashboard();
             
-            try {
-                await setDoc(doc(db, "settings", "budgets"), { limits: budgets });
-                showToast("Category deleted.");
-            } catch(error) {
-                showToast("Failed to delete: " + error.message);
-            }
+            try { await setDoc(doc(db, "settings", "budgets"), { limits: budgets }); showToast("Category deleted."); } 
+            catch(error) { showToast("Failed to delete: " + error.message); }
         };
 
         document.getElementById('addNewCategoryBtn').addEventListener('click', async () => {
@@ -460,7 +568,6 @@
             if (!name) return showToast("Please enter a category name.");
             if (categories.includes(name)) return showToast("Category already exists.");
             
-            // Read current inputs so uncommitted typed limits aren't lost
             const inputs = document.querySelectorAll('.budget-input');
             let currentBudgets = {};
             inputs.forEach(input => {
@@ -472,68 +579,50 @@
             budgets = currentBudgets;
             categories = Object.keys(budgets);
             
-            nameInput.value = '';
-            limitInput.value = '';
-            populateEditBudgetsForm();
-            updateCategoryDropdowns();
-            updateDashboard();
+            nameInput.value = ''; limitInput.value = '';
+            populateEditBudgetsForm(); updateCategoryDropdowns(); updateDashboard();
             
-            // Auto-scroll to the bottom to see the new item
             const container = document.getElementById('budgetInputsContainer');
             container.scrollTop = container.scrollHeight;
             
-            try {
-                await setDoc(doc(db, "settings", "budgets"), { limits: budgets });
-                showToast("Category added.");
-            } catch(error) {
-                showToast("Failed to add: " + error.message);
-            }
+            try { await setDoc(doc(db, "settings", "budgets"), { limits: budgets }); showToast("Category added."); } 
+            catch(error) { showToast("Failed to add: " + error.message); }
         });
 
         window.saveBudgetsAndClose = async () => {
             const inputs = document.querySelectorAll('.budget-input');
             let newBudgets = {};
-            
             inputs.forEach(input => {
                 const cat = input.getAttribute('data-category');
                 newBudgets[cat] = parseFloat(input.value) || 0;
             });
-
             budgets = newBudgets;
             categories = Object.keys(budgets);
-            updateCategoryDropdowns();
-            updateDashboard();
+            updateCategoryDropdowns(); updateDashboard();
             
-            try {
-                await setDoc(doc(db, "settings", "budgets"), { limits: newBudgets });
-                showToast("Limits saved successfully!");
-            } catch(error) {
-                showToast("Failed to save budgets: " + error.message);
-            }
+            try { await setDoc(doc(db, "settings", "budgets"), { limits: newBudgets }); showToast("Limits saved successfully!"); } 
+            catch(error) { showToast("Failed to save budgets: " + error.message); }
             toggleModal('editBudgetsModal');
         };
 
-        document.getElementById('editBudgetsForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            saveBudgetsAndClose();
-        });
+        document.getElementById('editBudgetsForm').addEventListener('submit', (e) => { e.preventDefault(); saveBudgetsAndClose(); });
 
-
-        // ----------------------------------------------------
-        // DYNAMIC SPLIT FORM LOGIC
-        // ----------------------------------------------------
         document.getElementById('addItemBtn').addEventListener('click', () => {
             const container = document.getElementById('lineItemsContainer');
+            const catGroupName = `cat_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
             const itemHTML = `
-                <div class="line-item bg-zinc-900 p-4 rounded-2xl border border-zinc-800 relative shadow-inner mt-4">
-                    <button type="button" class="absolute -top-3 -right-2 bg-zinc-800 text-zinc-400 rounded-full w-7 h-7 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors border border-zinc-700" onclick="this.parentElement.remove()">&times;</button>
-                    <div class="space-y-3">
-                        <input type="number" required step="0.01" class="item-amount w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-4 py-2.5 focus:outline-none focus:border-amber-500 font-mono text-lg transition-all" placeholder="$0.00">
-                        <div class="grid grid-cols-2 gap-3">
-                            <input type="text" class="item-desc w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 text-sm transition-all" placeholder="Description (Optional)...">
-                            <select required class="item-category w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 text-sm appearance-none">
-                                ${categories.map(c => `<option value="${c}">${c}</option>`).join('')}
-                            </select>
+                <div class="line-item bg-zinc-900 p-5 rounded-3xl border border-zinc-800 relative shadow-lg mt-4">
+                    <button type="button" class="absolute -top-3 -right-2 bg-zinc-800 text-zinc-400 rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors border border-zinc-700 shadow-md z-10" onclick="this.parentElement.remove()">&times;</button>
+                    <div class="space-y-4">
+                        <input type="number" required step="0.01" class="item-amount w-full bg-zinc-950 border border-zinc-700 text-white rounded-2xl px-5 py-4 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 font-mono text-2xl transition-all shadow-inner" placeholder="$0.00">
+                        <div class="space-y-3">
+                            <input type="text" class="item-desc w-full bg-zinc-950 border border-zinc-700 text-white rounded-xl px-5 py-3 focus:outline-none focus:border-amber-500 text-base transition-all shadow-inner" placeholder="Description (Optional)...">
+                            <div class="category-scroll flex overflow-x-auto hide-scrollbar gap-2 pb-1" data-group-name="${catGroupName}">
+                                ${categories.map((c, i) => `<label class="shrink-0 cursor-pointer block" onclick="">
+                                    <input type="radio" name="${catGroupName}" value="${c}" class="item-category-radio peer sr-only" ${i === 0 ? 'checked' : ''}>
+                                    <div class="px-4 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 peer-checked:bg-amber-500/10 peer-checked:border-amber-500 peer-checked:text-amber-500 transition-all text-xs font-medium whitespace-nowrap shadow-sm">${c}</div>
+                                </label>`).join('')}
+                            </div>
                         </div>
                     </div>
                 </div>`;
@@ -546,83 +635,106 @@
             while(container.children.length > 1) container.removeChild(container.lastChild);
         }
 
-        // Save Split Transactions
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = document.getElementById('submitBtn');
             submitBtn.innerText = "Saving..."; submitBtn.disabled = true;
 
-            const paidBy = document.getElementById('paidBy').value;
-            const accountSource = document.getElementById('accountSource').value;
-            const date = new Date().toISOString();
-            const groupId = Date.now().toString(); // Ties split items together
+            // Safe fetch logic to prevent crashes if something goes missing
+            const paidByNode = document.querySelector('input[name="paidBy"]:checked');
+            const sourceNode = document.querySelector('input[name="accountSource"]:checked');
+            
+            const paidBy = paidByNode ? paidByNode.value : 'Unknown';
+            const accountSource = sourceNode ? sourceNode.value : 'Unknown';
+            
+            const dateInputVal = document.getElementById('expenseDate').value;
+            const date = new Date(dateInputVal).toISOString(); 
+            
+            const groupId = Date.now().toString(); 
             const userId = auth.currentUser.uid;
 
             const lineItems = document.querySelectorAll('.line-item');
             
-            try {
-                const newEntries = Array.from(lineItems).map(item => {
-                    return {
-                        amount: parseFloat(item.querySelector('.item-amount').value),
-                        description: item.querySelector('.item-desc').value.trim() || "No description",
-                        category: item.querySelector('.item-category').value,
-                        paidBy, accountSource, date, userId, groupId
-                    };
-                });
-
-                const promises = newEntries.map(entry => addDoc(collection(db, "expenses"), entry));
-                await Promise.all(promises);
-                showToast("Expense logged successfully!");
-                
-                toggleModal('expenseModal');
-            } catch (error) {
-                showToast("Error saving transaction.");
-            } finally {
-                submitBtn.innerText = "Save to Ledger"; submitBtn.disabled = false;
-            }
-        });
-
-        // Dashboard (Envelopes) Calculation
-        function updateDashboard() {
-            const currentMonth = new Date().getMonth();
-            const currentYear = new Date().getFullYear();
-            const monthExpenses = expenses.filter(e => {
-                const d = new Date(e.date);
-                return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+            const newEntries = Array.from(lineItems).map(item => {
+                const catNode = item.querySelector('.item-category-radio:checked');
+                return {
+                    amount: parseFloat(item.querySelector('.item-amount').value) || 0,
+                    description: item.querySelector('.item-desc').value.trim() || "No description",
+                    category: catNode ? catNode.value : (categories[0] || 'Uncategorized'),
+                    paidBy, accountSource, date, userId, groupId
+                };
             });
 
-            // Global Calculate (sum of category budgets)
+            try {
+                const promises = newEntries.map(entry => addDoc(collection(db, "expenses"), entry));
+                await Promise.all(promises);
+                
+                selectedDate = new Date(dateInputVal);
+                refreshViews();
+                
+                showToast("Expense logged successfully!");
+                toggleModal('expenseModal');
+            } catch (error) { showToast("Error saving transaction."); } 
+            finally { submitBtn.innerText = "Save to Ledger"; submitBtn.disabled = false; }
+        });
+
+        // ----------------------------------------------------
+        // DATA PROCESSING & RENDERING (Filtered by selectedDate)
+        // ----------------------------------------------------
+
+        function getFilteredExpenses() {
+            const targetMonth = selectedDate.getMonth();
+            const targetYear = selectedDate.getFullYear();
+            return expenses.filter(e => {
+                if (!e.date) return false;
+                const d = new Date(e.date);
+                if (isNaN(d.getTime())) return false; // Safety check against malformed dates
+                return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+            });
+        }
+
+        function updateDashboard() {
+            const monthExpenses = getFilteredExpenses();
+
             const totalBudget = Object.values(budgets).reduce((a, b) => a + b, 0);
-            const totalSpent = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+            const totalSpent = monthExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
             const globalPerc = totalBudget > 0 ? Math.min((totalSpent / totalBudget) * 100, 100) : 0;
 
             document.getElementById('globalSpentText').innerText = `$${totalSpent.toFixed(2)} spent`;
             document.getElementById('globalTotalText').innerText = `$${totalBudget.toFixed(2)} total`;
-            document.getElementById('globalRemaining').innerText = `$${(totalBudget - totalSpent).toFixed(2)} Remaining`;
+            document.getElementById('globalRemaining').innerText = `$${(totalBudget - totalSpent).toFixed(2)}`;
             document.getElementById('globalFill').style.width = `${globalPerc}%`;
-            document.getElementById('globalFill').className = `h-full rounded-full transition-all duration-700 ${globalPerc > 90 ? 'bg-red-500' : 'bg-amber-500'}`;
+            
+            const isDanger = globalPerc > 90;
+            const bgGradient = isDanger ? 'from-red-500 to-rose-600 shadow-[0_0_12px_rgba(239,68,68,0.6)]' : 'from-amber-400 to-orange-500 shadow-[0_0_12px_rgba(245,158,11,0.6)]';
+            document.getElementById('globalFill').className = `h-full rounded-full transition-all duration-1000 bg-gradient-to-r ${bgGradient}`;
 
-            // Envelopes Rendering
             const catSpent = {};
             categories.forEach(c => catSpent[c] = 0);
-            monthExpenses.forEach(e => { if(catSpent[e.category] !== undefined) catSpent[e.category] += e.amount; });
+            monthExpenses.forEach(e => { 
+                const cat = e.category || 'Uncategorized';
+                if(catSpent[cat] !== undefined) catSpent[cat] += (e.amount || 0); 
+            });
 
             const envList = document.getElementById('envelopesList');
             envList.innerHTML = categories.map(cat => {
                 const b = budgets[cat] || 0;
-                const s = catSpent[cat];
+                const s = catSpent[cat] || 0;
                 const p = b > 0 ? Math.min((s / b) * 100, 100) : 100;
                 const over = s > b;
+                const envGradient = over ? 'from-red-500 to-rose-600 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'from-amber-400 to-orange-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]';
+                
                 return `
-                    <div class="bg-zinc-900 border border-zinc-800 p-4 rounded-xl shadow-md">
-                        <div class="flex justify-between text-sm mb-2">
-                            <span class="text-white">${cat}</span>
-                            <span class="${over ? 'text-red-400 font-medium' : 'text-zinc-400'}">$${(b - s).toFixed(0)} left</span>
+                    <div class="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shadow-lg relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-gradient-to-r from-zinc-800/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div class="flex justify-between text-sm mb-3 relative z-10">
+                            <span class="text-white font-medium">${cat}</span>
+                            <span class="${over ? 'text-red-400 font-bold' : 'text-zinc-400'}">$${(b - s).toFixed(0)} left</span>
                         </div>
-                        <div class="w-full bg-zinc-950 rounded-full h-1.5 mb-2 overflow-hidden border border-zinc-800/50">
-                            <div class="h-full rounded-full transition-all duration-700 ${over ? 'bg-red-500' : 'bg-zinc-400'}" style="width: ${p}%"></div>
+                        <div class="w-full bg-zinc-950 rounded-full h-2.5 mb-2.5 overflow-hidden border border-zinc-800/50 shadow-inner relative z-10">
+                            <div class="h-full rounded-full transition-all duration-1000 bg-gradient-to-r ${envGradient}" style="width: ${p}%"></div>
                         </div>
-                        <div class="flex justify-between text-xs text-zinc-500 font-mono">
+                        <div class="flex justify-between text-[10px] text-zinc-500 font-mono font-medium relative z-10 uppercase tracking-widest">
                             <span>$${s.toFixed(0)} spent</span>
                             <span>$${b.toFixed(0)} cap</span>
                         </div>
@@ -633,35 +745,94 @@
             updateChart(catSpent);
         }
 
-        // History & Search Rendering
+        function updateSettlement() {
+            const monthExpenses = getFilteredExpenses();
+
+            let total = 0, rogerTotal = 0, noelleTotal = 0;
+            let rogerCards = {}, noelleCards = {};
+
+            monthExpenses.forEach(e => {
+                const amount = e.amount || 0;
+                total += amount;
+                const source = e.accountSource || 'Unknown';
+                
+                if (e.paidBy === 'Roger') {
+                    rogerTotal += amount;
+                    rogerCards[source] = (rogerCards[source] || 0) + amount;
+                } else if (e.paidBy === 'Noelle') {
+                    noelleTotal += amount;
+                    noelleCards[source] = (noelleCards[source] || 0) + amount;
+                }
+            });
+
+            document.getElementById('settleTotal').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('settleRogerTotal').innerText = `$${rogerTotal.toFixed(2)}`;
+            document.getElementById('settleNoelleTotal').innerText = `$${noelleTotal.toFixed(2)}`;
+
+            const renderCards = (cardsObj, elId, person) => {
+                const el = document.getElementById(elId);
+                if (Object.keys(cardsObj).length === 0) {
+                    el.innerHTML = '<span class="text-zinc-600 italic">No claims</span>';
+                    return;
+                }
+                el.innerHTML = Object.keys(cardsObj).map(card => `
+                    <div class="flex justify-between items-center py-2 cursor-pointer hover:bg-zinc-800/70 px-2 -mx-2 rounded-xl transition-colors group" onclick="showCardDetails('${person}', '${card.replace(/'/g, "\\'")}')">
+                        <span class="flex items-center gap-2">
+                            <span class="text-zinc-400 group-hover:text-white transition-colors">${card}</span>
+                            <svg class="w-3.5 h-3.5 text-zinc-600 group-hover:text-amber-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </span>
+                        <span class="text-white group-hover:text-amber-500 transition-colors font-medium">$${cardsObj[card].toFixed(2)}</span>
+                    </div>
+                `).join('');
+            };
+
+            renderCards(rogerCards, 'settleRogerBreakdown', 'Roger');
+            renderCards(noelleCards, 'settleNoelleBreakdown', 'Noelle');
+        }
+
+        // Bulletproof rendering to ensure the history list never crashes
         function renderHistory(filterText = "") {
             const list = document.getElementById('historyList');
+            const targetMonth = selectedDate.getMonth();
+            const targetYear = selectedDate.getFullYear();
+            
             const filtered = expenses.filter(e => {
+                if (!e.date) return false;
+                const d = new Date(e.date);
+                if (isNaN(d.getTime())) return false; // Ensure date is valid
+                
+                const inMonth = d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+                
                 const term = filterText.toLowerCase();
-                return e.description.toLowerCase().includes(term) || 
-                       e.category.toLowerCase().includes(term) || 
-                       (e.accountSource && e.accountSource.toLowerCase().includes(term));
+                const desc = (e.description || '').toLowerCase();
+                const cat = (e.category || '').toLowerCase();
+                const src = (e.accountSource || '').toLowerCase();
+                
+                const matchesSearch = desc.includes(term) || cat.includes(term) || src.includes(term);
+                                      
+                return inMonth && matchesSearch;
             });
 
             if (filtered.length === 0) {
-                list.innerHTML = `<p class="text-sm text-zinc-600 text-center py-4 italic">No transactions found.</p>`;
+                list.innerHTML = `<p class="text-sm text-zinc-600 text-center py-4 italic">No transactions found for this month.</p>`;
                 return;
             }
 
+            // Explicitly use SVGs here for the Edit and Delete buttons so they are guaranteed visible
             list.innerHTML = filtered.map(exp => `
-                <div class="flex justify-between items-center bg-zinc-900 border border-zinc-800 p-4 rounded-xl shadow-md">
+                <div class="flex justify-between items-center bg-zinc-900 border border-zinc-800 p-4 rounded-2xl shadow-md">
                     <div>
-                        <p class="text-white font-medium text-sm">${exp.description}</p>
-                        <p class="text-xs text-zinc-500 mt-1">${exp.category} • <span class="text-amber-500/70">${exp.accountSource || 'N/A'}</span> (${exp.paidBy})</p>
+                        <p class="text-white font-medium text-sm">${exp.description || 'No description'}</p>
+                        <p class="text-xs text-zinc-500 mt-1">${exp.category || 'Uncategorized'} • <span class="text-amber-500/70">${exp.accountSource || 'N/A'}</span> (${exp.paidBy || 'Unknown'})</p>
                     </div>
                     <div class="text-right flex flex-col items-end">
-                        <p class="text-white font-mono font-medium">$${exp.amount.toFixed(2)}</p>
-                        <p class="text-xs text-zinc-600 mt-1">${new Date(exp.date).toLocaleDateString()}</p>
-                        <div class="flex gap-3 mt-2">
-                            <button onclick="editExpense('${exp.id}')" class="text-zinc-500 hover:text-amber-500 transition-colors" title="Edit">
+                        <p class="text-white font-mono font-medium">$${(exp.amount || 0).toFixed(2)}</p>
+                        <p class="text-[10px] text-zinc-600 mt-1 uppercase tracking-widest">${new Date(exp.date).toLocaleDateString()}</p>
+                        <div class="flex gap-2 mt-3">
+                            <button onclick="editExpense('${exp.id}')" class="p-1.5 text-zinc-500 hover:text-amber-500 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors border border-zinc-700/50 shadow-sm" title="Edit">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                             </button>
-                            <button onclick="deleteExpense('${exp.id}')" class="text-zinc-500 hover:text-red-500 transition-colors" title="Delete">
+                            <button onclick="deleteExpense('${exp.id}')" class="p-1.5 text-zinc-500 hover:text-red-500 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors border border-zinc-700/50 shadow-sm" title="Delete">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                             </button>
                         </div>
@@ -672,28 +843,57 @@
 
         document.getElementById('searchInput').addEventListener('input', (e) => renderHistory(e.target.value));
 
-        // ----------------------------------------------------
-        // EDIT & DELETE TRANSACTIONS LOGIC
-        // ----------------------------------------------------
+        window.showCardDetails = (person, card) => {
+            const monthExpenses = getFilteredExpenses();
+            const specificExpenses = monthExpenses.filter(e => e.paidBy === person && (e.accountSource || 'Unknown') === card);
+            
+            document.getElementById('cardBreakdownTitle').innerText = `${card} Breakdown`;
+            
+            const list = document.getElementById('cardBreakdownList');
+            list.innerHTML = specificExpenses.map(exp => `
+                <div class="bg-zinc-950 border border-zinc-800 p-4 rounded-xl flex justify-between items-center shadow-inner">
+                    <div>
+                        <p class="text-white text-sm font-medium">${exp.description || 'No description'}</p>
+                        <p class="text-[10px] text-zinc-500 mt-1 uppercase tracking-widest">${new Date(exp.date).toLocaleDateString()} • ${exp.category || 'Uncategorized'}</p>
+                    </div>
+                    <div class="text-amber-500 font-mono text-sm font-medium">
+                        $${(exp.amount || 0).toFixed(2)}
+                    </div>
+                </div>
+            `).join('');
+            
+            toggleModal('cardBreakdownModal');
+        };
+
         window.deleteExpense = async (id) => {
-            try {
-                await deleteDoc(doc(db, "expenses", id));
-                showToast("Transaction deleted.");
-            } catch (error) {
-                showToast("Error deleting transaction: " + error.message);
-            }
+            try { await deleteDoc(doc(db, "expenses", id)); showToast("Transaction deleted."); } 
+            catch (error) { showToast("Error deleting transaction: " + error.message); }
         };
 
         window.editExpense = (id) => {
             const exp = expenses.find(e => e.id === id);
             if (!exp) return;
-            
             document.getElementById('editExpenseId').value = id;
-            document.getElementById('editPaidBy').value = exp.paidBy;
-            document.getElementById('editAccountSource').value = exp.accountSource;
-            document.getElementById('editAmount').value = exp.amount;
+            
+            const paidByRadio = document.querySelector(`input[name="editPaidBy"][value="${exp.paidBy || 'Roger'}"]`);
+            if(paidByRadio) paidByRadio.checked = true;
+            
+            const sourceRadio = document.querySelector(`input[name="editAccountSource"][value="${exp.accountSource || 'HSBC'}"]`);
+            if(sourceRadio) sourceRadio.checked = true;
+            else document.querySelector(`input[name="editAccountSource"][value="HSBC"]`).checked = true;
+            
+            document.getElementById('editAmount').value = exp.amount || 0;
             document.getElementById('editDesc').value = exp.description !== "No description" ? exp.description : "";
-            document.getElementById('editCategory').value = exp.category;
+            
+            const catRadio = document.querySelector(`input[name="editCategory"][value="${exp.category}"]`);
+            if(catRadio) catRadio.checked = true;
+            
+            if(exp.date) {
+                const expDate = new Date(exp.date);
+                if(!isNaN(expDate.getTime())) {
+                    document.getElementById('editExpenseDate').value = expDate.toISOString().split('T')[0];
+                }
+            }
             
             toggleModal('editExpenseModal');
         };
@@ -704,26 +904,32 @@
             submitBtn.innerText = "Saving..."; submitBtn.disabled = true;
 
             const id = document.getElementById('editExpenseId').value;
+            const newDateVal = document.getElementById('editExpenseDate').value;
+            
+            // Safe fetch logic for edits
+            const paidByNode = document.querySelector('input[name="editPaidBy"]:checked');
+            const sourceNode = document.querySelector('input[name="editAccountSource"]:checked');
+            const catNode = document.querySelector('input[name="editCategory"]:checked');
+            
             const updatedData = {
-                paidBy: document.getElementById('editPaidBy').value,
-                accountSource: document.getElementById('editAccountSource').value,
-                amount: parseFloat(document.getElementById('editAmount').value),
+                paidBy: paidByNode ? paidByNode.value : 'Unknown',
+                accountSource: sourceNode ? sourceNode.value : 'Unknown',
+                amount: parseFloat(document.getElementById('editAmount').value) || 0,
                 description: document.getElementById('editDesc').value.trim() || "No description",
-                category: document.getElementById('editCategory').value
+                category: catNode ? catNode.value : (categories[0] || 'Uncategorized'),
+                date: new Date(newDateVal).toISOString()
             };
 
             try {
                 await updateDoc(doc(db, "expenses", id), updatedData);
+                selectedDate = new Date(newDateVal);
+                refreshViews();
                 showToast("Transaction updated successfully!");
                 toggleModal('editExpenseModal');
-            } catch (error) {
-                showToast("Error updating transaction.");
-            } finally {
-                submitBtn.innerText = "Save Changes"; submitBtn.disabled = false;
-            }
+            } catch (error) { showToast("Error updating transaction."); } 
+            finally { submitBtn.innerText = "Save Changes"; submitBtn.disabled = false; }
         });
 
-        // Chart.js Setup
         let chartInstance = null;
         function updateChart(catSpent) {
             const ctx = document.getElementById('expenseChart').getContext('2d');
@@ -735,19 +941,35 @@
                     labels: Object.keys(catSpent),
                     datasets: [{
                         data: Object.values(catSpent),
-                        backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'],
-                        borderWidth: 0, hoverOffset: 4
+                        backgroundColor: ['#F5A524', '#FF705B', '#7A5AF8', '#2ED3B7', '#4DA8DA', '#FF5C93', '#F5D485'],
+                        borderWidth: 3, 
+                        borderColor: '#18181b', 
+                        borderRadius: 8,
+                        hoverOffset: 4
                     }]
                 },
-                options: { cutout: '75%', plugins: { legend: { position: 'right', labels: { usePointStyle: true, padding: 15, font: { size: 11, family: "'Inter', sans-serif" } } } } }
+                options: { 
+                    cutout: '78%', 
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(24, 24, 27, 0.9)',
+                            titleFont: { family: "'Inter', sans-serif", size: 11 },
+                            bodyFont: { family: "'Inter', sans-serif", size: 13, weight: 'bold' },
+                            padding: 10,
+                            cornerRadius: 8,
+                            displayColors: true
+                        }
+                    } 
+                }
             });
         }
 
-        // CSV Export
         window.exportToCSV = () => {
             if(expenses.length === 0) return showToast("No data to export.");
             const headers = ['Date', 'Description', 'Category', 'Paid By', 'Source', 'Amount'];
-            const rows = expenses.map(e => [new Date(e.date).toLocaleDateString(), `"${e.description}"`, e.category, e.paidBy, e.accountSource || 'N/A', e.amount]);
+            const rows = expenses.map(e => [new Date(e.date).toLocaleDateString(), `"${e.description || ''}"`, e.category || '', e.paidBy || '', e.accountSource || 'N/A', e.amount || 0]);
             const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "our_ledger_export.csv"; link.click();
